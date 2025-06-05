@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', function() {
     linksArea.value = 'Extracting...';
     copyLinksBtn.disabled = true;
     statusDiv.textContent = '';
-    extractedLinks = []; // Clear previous links
+    extractedLinks = [];
 
     try {
       const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
