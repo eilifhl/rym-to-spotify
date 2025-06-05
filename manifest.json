@@ -26,5 +26,11 @@
       "matches": ["*://rateyourmusic.com/charts/*"],
       "js": ["content_script.js"]
     }
-  ]
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+
+      "id": "{895a470a-7abd-43b8-99d2-e72d4509ba6d}" 
+    }
+  }
 }
