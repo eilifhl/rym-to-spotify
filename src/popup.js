@@ -162,7 +162,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     for (let i = 0; i < albums.length; i++) {
       const albumData = albums[i];
       setUiState({
-          progressMessage: `Fetching tracks for "${albumData.title}" (${i + 1}/${albums.length})...`
+          state: 'loading', 
+          statusMessage: `Fetching tracks for "${albumData.title}" (${i + 1}/${albums.length})...`, // This will update the status div
+          disableGetLinksBtn: true, 
       });
 
       try {
