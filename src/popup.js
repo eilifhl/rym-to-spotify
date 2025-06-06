@@ -186,7 +186,7 @@ document.addEventListener('DOMContentLoaded', async function() {
       } catch (e) {
          console.error(`POPUP: Error messaging background for album ${albumData.id} ("${albumData.title}"):`, e);
       }
-      await new Promise(resolve => setTimeout(resolve, 150)); // Politeness delay
+      await new Promise(resolve => setTimeout(resolve, TRACK_FETCH_DELAY_MS)); // Politeness delay
     }
 
     if (extractedContent.length > 0) {
