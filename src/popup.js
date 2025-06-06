@@ -186,6 +186,7 @@ document.addEventListener('DOMContentLoaded', async function() {
       } catch (e) {
          console.error(`POPUP: Error messaging background for album ${albumData.id} ("${albumData.title}"):`, e);
       }
+      let TRACK_FETCH_DELAY_MS = 150;
       await new Promise(resolve => setTimeout(resolve, TRACK_FETCH_DELAY_MS)); // Politeness delay
     }
 
