@@ -88,7 +88,7 @@ async function getAlbumTracks(albumId, token) {
     if (!token) {
         return { error: "Missing Spotify access token for getAlbumTracks." };
     }
-    const market = 'US'; // Consider making this configurable or detecting user's market
+    const market = (navigator.language && navigator.language.split('-')[1]) || 'US'; // Dynamically detect user's market or fallback to 'US'
     const url = `${SPOTIFY_API_BASE_URL}/albums/${albumId}/tracks?market=${market}&limit=50`;
 
     console.log(`BG: Fetching tracks for album ID: ${albumId}`);
