@@ -6,7 +6,13 @@
   "permissions": [
     "activeTab",
     "scripting",
-    "clipboardWrite"
+    "clipboardWrite",
+    "identity",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://api.spotify.com/*",
+    "https://accounts.spotify.com/*"
   ],
   "action": {
     "default_popup": "popup.html",
@@ -17,6 +23,12 @@
     }
   },
   "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "background": {
+    "scripts": ["background.js"] 
   },
   "content_scripts": [
     {
@@ -26,8 +38,7 @@
   ],
   "browser_specific_settings": {
     "gecko": {
-
-      "id": "{895a470a-7abd-43b8-99d2-e72d4509ba6d}" 
+      "id": "{895a470a-7abd-43b8-99d2-e72d4509ba6d}"
     }
   }
 }
