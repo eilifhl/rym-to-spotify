@@ -161,7 +161,9 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     for (let i = 0; i < albums.length; i++) {
       const albumData = albums[i];
-      UI.statusDiv.textContent = `Fetching tracks for "${albumData.title}" (${i + 1}/${albums.length})...`; // Direct update for progress
+      setUiState({
+          progressMessage: `Fetching tracks for "${albumData.title}" (${i + 1}/${albums.length})...`
+      });
 
       try {
         const trackResponse = await browser.runtime.sendMessage({
