@@ -54,7 +54,7 @@ function extractSpotifyAlbumIds() {
       if (spotifyEntry.type === "album" || !spotifyEntry.type) {
         console.log(`CS: Found Spotify album ID: ${spotifyId} for title: "${albumTitle}"`);
         spotifyAlbumData.push({ id: spotifyId, title: albumTitle });
-        break; // Assume one primary album link per chart item
+        break; 
       }
     }
   });
@@ -80,7 +80,7 @@ function extractSpotifyLinks() {
 
     for (const spotifyId in dataLinks.spotify) {
       const spotifyEntry = dataLinks.spotify[spotifyId];
-      let linkType = "album"; // Default Spotify link type
+      let linkType = "album";
 
       if (spotifyEntry.type) {
         switch (spotifyEntry.type.toLowerCase()) {
@@ -92,7 +92,6 @@ function extractSpotifyLinks() {
           case "playlists":
             linkType = "playlist";
             break;
-          // Default remains "album"
         }
       }
       const spotifyUrl = `https://open.spotify.com/${linkType}/${spotifyId}`;
@@ -122,7 +121,5 @@ browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
       break;
   }
   sendResponse(responseData);
-  // For synchronous message handlers, returning true is good practice if any part might become async.
-  // If all handlers are guaranteed synchronous, it's not strictly necessary.
-  return true; 
+  return true;
 });

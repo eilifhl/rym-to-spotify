@@ -1,6 +1,8 @@
 document.addEventListener('DOMContentLoaded', async function() {
-  // --- UI Elements ---
   const UI = {
+    loginBtn: document.getElementById('loginBtn'),
+    logoutBtn: document.getElementById('logoutBtn'),
+    authStatusDiv: document.getElementById('authStatus'),
     getLinksBtn: document.getElementById('getLinksBtn'),
     copyLinksBtn: document.getElementById('copyLinksBtn'),
     linksArea: document.getElementById('linksArea'),
@@ -8,37 +10,78 @@ document.addEventListener('DOMContentLoaded', async function() {
     linkTypeRadios: document.querySelectorAll('input[name="linkType"]'),
   };
 
-  let extractedContent = []; // Stores the latest extracted links/data
+  let extractedContent = [];
+  let isLoggedIn = false;
 
-  // --- UI State Management ---
-  /**
-   * Updates the UI elements based on the current state.
-   * @param {object} config - Configuration for the UI state.
-   * @param {'initial'|'loading'|'success'|'error'|'info'} config.state - The state to set.
-   * @param {string} [config.statusMessage=''] - Message for the status div.
-   * @param {string} [config.linksAreaMessage=''] - Message for the links textarea (if different from status).
-   * @param {boolean} [config.disableGetLinksBtn=false] - Whether to disable the "Get Links" button.
-   */
+  function getSelectedLinkType() {
+    for (const radio of UI.linkTypeRadios) {
+      if (radio.checked) {
+        return radio.value;
+      }
+    }
+    return 'album'; 
+  }
+
+  function updateUiBasedOnLoginAndType() {
+    const selectedType = getSelectedLinkType();
+    const needsLoginForSelectedType = selectedType === 'allTracks' || selectedType === 'firstTrack';
+
+    if (isLoggedIn) {
+      UI.loginBtn.style.display = 'none';
+      UI.logoutBtn.style.display = 'block';
+      UI.authStatusDiv.textContent = 'Logged in to Spotify.';
+      UI.authStatusDiv.className = 'success';
+      UI.getLinksBtn.disabled = false; 
+    } else {
+      UI.loginBtn.style.display = 'block';
+      UI.logoutBtn.style.display = 'none';
+      UI.authStatusDiv.textContent = 'Not logged in.';
+      UI.authStatusDiv.className = 'info';
+      if (needsLoginForSelectedType) {
+        UI.authStatusDiv.textContent += ' Login required to fetch track links.';
+        UI.getLinksBtn.disabled = true;
+      } else {
+        UI.getLinksBtn.disabled = false; 
+      }
+    }
+    if (!UI.getLinksBtn.disabled && UI.statusDiv.textContent.includes('Login required')) {
+      setUiState({ state: 'initial', statusMessage: 'Ready. Select link type and click "Get Links".'});
+    } else if (UI.getLinksBtn.disabled && needsLoginForSelectedType) {
+      setUiState({ state: 'initial', statusMessage: 'Please log in to fetch track links.'});
+    }
+  }
+
   function setUiState(config) {
     const {
       state,
       statusMessage = '',
       linksAreaMessage = '',
-      disableGetLinksBtn = false,
+      disableGetLinksBtnOverride = null, 
     } = config;
 
     UI.statusDiv.textContent = statusMessage;
-    UI.getLinksBtn.disabled = disableGetLinksBtn;
-    // Copy button is enabled only if there's content and not in loading/error/info states
-    UI.copyLinksBtn.disabled = !(state === 'success' && extractedContent.length > 0);
 
+    // Button disabling logic
+    const selectedType = getSelectedLinkType();
+    const needsLoginForSelectedType = selectedType === 'allTracks' || selectedType === 'firstTrack';
+
+    if (disableGetLinksBtnOverride !== null) {
+      UI.getLinksBtn.disabled = disableGetLinksBtnOverride;
+    } else {
+      UI.getLinksBtn.disabled = (needsLoginForSelectedType && !isLoggedIn);
+    }
+
+    UI.copyLinksBtn.disabled = !(state === 'success' && extractedContent.length > 0);
 
     let currentLinksAreaMessage = linksAreaMessage || statusMessage;
 
     switch (state) {
       case 'initial':
         UI.linksArea.value = UI.linksArea.placeholder;
-        UI.statusDiv.className = 'info'; // Initial messages are usually informational
+        UI.statusDiv.className = 'info';
+        if (needsLoginForSelectedType && !isLoggedIn && !statusMessage) {
+          UI.statusDiv.textContent = 'Please log in to fetch track links.';
+        }
         break;
       case 'loading':
         UI.linksArea.value = linksAreaMessage || 'Extracting...';
@@ -61,40 +104,122 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
   }
 
-  // --- Initial Setup ---
-  try {
-    const tokenStatus = await browser.runtime.sendMessage({ action: "getAppTokenStatus" });
-    if (tokenStatus && tokenStatus.error) {
-        setUiState({ state: 'initial', statusMessage: `Token status check error: ${tokenStatus.error}`});
-    } else if (tokenStatus && !tokenStatus.hasToken) {
-      setUiState({ state: 'initial', statusMessage: "Spotify app token might need to be fetched. Click 'Get Links'." });
+  async function checkLoginStatusAndUpdateUi() {
+    UI.authStatusDiv.textContent = 'Checking login status...';
+    UI.authStatusDiv.className = 'info';
+    try {
+      const status = await browser.runtime.sendMessage({ action: "getUserAuthStatus" });
+      if (status && status.error) {
+        isLoggedIn = false;
+        UI.authStatusDiv.textContent = `Auth status error: ${status.error}`;
+        UI.authStatusDiv.className = 'error';
+      } else {
+        isLoggedIn = status.isLoggedIn;
+      }
+    } catch (e) {
+      console.warn("Could not check user auth status on load", e);
+      isLoggedIn = false;
+      UI.authStatusDiv.textContent = "Could not check login status.";
+      UI.authStatusDiv.className = 'error';
+    }
+    updateUiBasedOnLoginAndType();
+    const selectedType = getSelectedLinkType();
+    const needsLogin = selectedType === 'allTracks' || selectedType === 'firstTrack';
+    if (!isLoggedIn && needsLogin) {
+      setUiState({ state: 'initial', statusMessage: "Please log in to Spotify to fetch track links." });
     } else {
       setUiState({ state: 'initial', statusMessage: 'Ready. Select link type and click "Get Links".' });
     }
-  } catch (e) {
-    console.warn("Could not check app token status on load", e);
-    setUiState({ state: 'initial', statusMessage: "Could not check app token status on load." });
   }
 
+  // --- Initial Setup ---
+  await checkLoginStatusAndUpdateUi();
+
   // --- Event Listeners ---
+  UI.loginBtn.addEventListener('click', async () => {
+    UI.authStatusDiv.textContent = 'Attempting to log in...';
+    UI.authStatusDiv.className = 'info';
+    UI.loginBtn.disabled = true;
+    try {
+      const response = await browser.runtime.sendMessage({ action: "initiateUserLogin" });
+      if (response && response.error) {
+        isLoggedIn = false;
+        UI.authStatusDiv.textContent = `Login failed: ${response.error}`;
+        UI.authStatusDiv.className = 'error';
+      } else if (response && response.success) {
+        isLoggedIn = true;
+      } else {
+        isLoggedIn = false;
+        UI.authStatusDiv.textContent = 'Login attempt finished with unclear result.';
+        UI.authStatusDiv.className = 'info';
+      }
+    } catch (e) {
+      isLoggedIn = false;
+      UI.authStatusDiv.textContent = `Login error: ${e.message}`;
+      UI.authStatusDiv.className = 'error';
+    }
+    UI.loginBtn.disabled = false;
+    updateUiBasedOnLoginAndType();
+    if (isLoggedIn) { 
+      setUiState({ state: 'initial', statusMessage: 'Ready. Select link type and click "Get Links".'});
+    }
+  });
+
+  UI.logoutBtn.addEventListener('click', async () => {
+    UI.authStatusDiv.textContent = 'Logging out...';
+    UI.authStatusDiv.className = 'info';
+    UI.logoutBtn.disabled = true;
+    try {
+      const response = await browser.runtime.sendMessage({ action: "userLogout" });
+      isLoggedIn = false; 
+      if (response && response.error) {
+        UI.authStatusDiv.textContent = `Logout error: ${response.error}`;
+        UI.authStatusDiv.className = 'error';
+      }
+    } catch(e) {
+      isLoggedIn = false; 
+      UI.authStatusDiv.textContent = `Logout error: ${e.message}`;
+      UI.authStatusDiv.className = 'error';
+    }
+    UI.logoutBtn.disabled = false;
+    updateUiBasedOnLoginAndType();
+    extractedContent = []; 
+    setUiState({ state: 'initial', statusMessage: "Logged out. Log in to fetch track links." });
+  });
+
   UI.getLinksBtn.addEventListener('click', handleGetLinks);
   UI.copyLinksBtn.addEventListener('click', handleCopyLinks);
 
-  // --- Core Logic Functions ---
-  function getSelectedLinkType() {
-    for (const radio of UI.linkTypeRadios) {
-      if (radio.checked) {
-        return radio.value;
+  UI.linkTypeRadios.forEach(radio => radio.addEventListener('change', () => {
+    updateUiBasedOnLoginAndType();
+    const selectedType = getSelectedLinkType();
+    const needsLogin = selectedType === 'allTracks' || selectedType === 'firstTrack';
+    if (!needsLogin || isLoggedIn) {
+      if (UI.statusDiv.textContent.includes("Please log in")) {
+        setUiState({ state: 'initial', statusMessage: 'Ready. Select link type and click "Get Links".' });
       }
+    } else if (needsLogin && !isLoggedIn) {
+      setUiState({ state: 'initial', statusMessage: "Please log in to Spotify to fetch track links." });
     }
-    return 'album'; // Default
-  }
+  }));
+
 
   async function handleGetLinks() {
-    setUiState({ state: 'loading', statusMessage: 'Working...', disableGetLinksBtn: true });
-    extractedContent = []; // Reset
+    setUiState({ state: 'loading', statusMessage: 'Working...', disableGetLinksBtnOverride: true });
+    extractedContent = [];
 
     const selectedLinkType = getSelectedLinkType();
+    const needsLoginForSelectedType = selectedLinkType === 'allTracks' || selectedLinkType === 'firstTrack';
+
+    if (needsLoginForSelectedType && !isLoggedIn) {
+      setUiState({
+        state: 'error',
+        statusMessage: 'Please log in with Spotify to fetch track links.',
+        linksAreaMessage: 'Login required.'
+      });
+      updateUiBasedOnLoginAndType();
+      return;
+    }
 
     try {
       const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
@@ -116,6 +241,12 @@ document.addEventListener('DOMContentLoaded', async function() {
     } catch (error) {
       console.error("Error in Get Links:", error);
       setUiState({ state: 'error', statusMessage: `Error: ${error.message}` });
+    } finally {
+      if (UI.statusDiv.className !== 'loading') { 
+        const currentStatus = UI.statusDiv.textContent; 
+        const currentState = UI.statusDiv.className; 
+        setUiState({state: currentState, statusMessage: currentStatus, disableGetLinksBtnOverride: null});
+      }
     }
   }
 
@@ -153,18 +284,18 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 
     const albums = albumIdResponse.albums;
-    setUiState({ // Update to loading state, but with more info
-        state: 'loading',
-        statusMessage: `Found ${albums.length} albums. Fetching tracks...`,
-        disableGetLinksBtn: true
+    setUiState({
+      state: 'loading',
+      statusMessage: `Found ${albums.length} albums. Fetching tracks...`,
+      disableGetLinksBtnOverride: true
     });
 
     for (let i = 0; i < albums.length; i++) {
       const albumData = albums[i];
       setUiState({
-          state: 'loading', 
-          statusMessage: `Fetching tracks for "${albumData.title}" (${i + 1}/${albums.length})...`, // This will update the status div
-          disableGetLinksBtn: true, 
+        state: 'loading',
+        statusMessage: `Fetching tracks for "${albumData.title}" (${i + 1}/${albums.length})...`,
+        disableGetLinksBtnOverride: true,
       });
 
       try {
@@ -172,8 +303,17 @@ document.addEventListener('DOMContentLoaded', async function() {
           action: "getAlbumTracksFromSpotify",
           albumId: albumData.id
         });
-        console.log(`POPUP: Raw trackResponse for ${albumData.id} ("${albumData.title}"):`, trackResponse);
 
+        if (trackResponse && trackResponse.needsLogin) {
+          isLoggedIn = false; 
+          setUiState({
+            state: 'error',
+            statusMessage: 'Spotify session error. Please log in again.',
+            linksAreaMessage: 'Login required.'
+          });
+          updateUiBasedOnLoginAndType(); 
+          return; 
+        }
         if (trackResponse && trackResponse.error) {
           console.warn(`POPUP: BG error for album ${albumData.id} ("${albumData.title}"): ${trackResponse.error}`);
         } else if (trackResponse && Array.isArray(trackResponse.tracks) && trackResponse.tracks.length > 0) {
@@ -183,13 +323,13 @@ document.addEventListener('DOMContentLoaded', async function() {
             extractedContent.push(trackResponse.tracks[0]);
           }
         } else {
-           console.warn(`POPUP: No tracks or unexpected response for album ${albumData.id} ("${albumData.title}"):`, trackResponse);
+          console.warn(`POPUP: No tracks or unexpected response for album ${albumData.id} ("${albumData.title}"):`, trackResponse);
         }
       } catch (e) {
-         console.error(`POPUP: Error messaging background for album ${albumData.id} ("${albumData.title}"):`, e);
+        console.error(`POPUP: Error messaging background for album ${albumData.id} ("${albumData.title}"):`, e);
       }
-      let TRACK_FETCH_DELAY_MS = 150;
-      await new Promise(resolve => setTimeout(resolve, TRACK_FETCH_DELAY_MS)); // Politeness delay
+      let TRACK_FETCH_DELAY_MS = 150; // Keep politeness delay
+      await new Promise(resolve => setTimeout(resolve, TRACK_FETCH_DELAY_MS));
     }
 
     if (extractedContent.length > 0) {
@@ -198,10 +338,14 @@ document.addEventListener('DOMContentLoaded', async function() {
         statusMessage: `Extracted ${extractedContent.length} track links.`
       });
     } else {
-      setUiState({
-        state: 'info',
-        statusMessage: 'No tracks found for the albums on this page, or errors occurred.'
-      });
+      if (!isLoggedIn && (selectedLinkType === 'allTracks' || selectedLinkType === 'firstTrack')) {
+        setUiState({ state: 'error', statusMessage: 'Login required to fetch tracks. Please log in.' });
+      } else {
+        setUiState({
+          state: 'info',
+          statusMessage: 'No tracks found for the albums on this page, or errors occurred during fetch.'
+        });
+      }
     }
   }
 
@@ -212,12 +356,12 @@ document.addEventListener('DOMContentLoaded', async function() {
         const originalClassName = UI.statusDiv.className;
 
         UI.statusDiv.textContent = 'Links copied to clipboard!';
-        UI.statusDiv.className = 'success temporary-copy-status'; // Can be used for temp styling
+        UI.statusDiv.className = 'success temporary-copy-status';
         UI.copyLinksBtn.textContent = 'Copied!';
-        
+
         setTimeout(() => {
           UI.copyLinksBtn.textContent = 'Copy Links';
-          UI.statusDiv.textContent = originalStatus; // Restore previous status
+          UI.statusDiv.textContent = originalStatus;
           UI.statusDiv.className = originalClassName;
         }, 2000);
       }).catch(err => {
