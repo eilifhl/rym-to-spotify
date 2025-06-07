@@ -6,27 +6,35 @@
     body { font-family: sans-serif; width: 350px; padding: 10px; }
     button { margin: 5px 0; padding: 8px; width: 100%; cursor: pointer; }
     textarea { width: 95%; height: 150px; margin-top: 10px; }
-    #status { font-size: 0.9em; color: #333; margin-top: 5px; min-height: 1.2em; }
+    #status, #authStatus { font-size: 0.9em; color: #333; margin-top: 5px; min-height: 1.2em; }
     .options label { margin-right: 15px; font-size: 0.9em;}
     .error { color: red; }
     .success { color: green; }
     .info { color: blue; }
+    #authSection button { width: calc(50% - 2px); margin-right: 4px; }
+    #authSection button:last-child { margin-right: 0; }
   </style>
 </head>
 <body>
-  <h3>RYM Spotify Extractor</h3>
+<h3>RYM Spotify Extractor</h3>
 
-  <div class="options">
-    <label><input type="radio" name="linkType" value="album" checked> Album Links</label>
-    <label><input type="radio" name="linkType" value="allTracks"> All Tracks</label>
-    <label><input type="radio" name="linkType" value="firstTrack"> First Track</label>
-  </div>
+<div id="authSection">
+  <button id="loginBtn">Login with Spotify</button>
+  <button id="logoutBtn" style="display:none;">Logout</button>
+</div>
+<div id="authStatus" class="info">Checking login status...</div>
 
-  <button id="getLinksBtn">Get Links</button>
-  <button id="copyLinksBtn" disabled>Copy Links</button>
-  <textarea id="linksArea" placeholder="Spotify links will appear here..."></textarea>
-  <div id="status"></div>
+<div class="options" style="margin-top: 10px;">
+  <label><input type="radio" name="linkType" value="album" checked> Album Links</label>
+  <label><input type="radio" name="linkType" value="allTracks"> All Tracks</label>
+  <label><input type="radio" name="linkType" value="firstTrack"> First Track</label>
+</div>
 
-  <script src="popup.js"></script>
+<button id="getLinksBtn" disabled>Get Links</button>
+<button id="copyLinksBtn" disabled>Copy Links</button>
+<textarea id="linksArea" placeholder="Spotify links will appear here..."></textarea>
+<div id="status"></div> <!-- General operation status -->
+
+<script src="popup.js"></script>
 </body>
 </html>
