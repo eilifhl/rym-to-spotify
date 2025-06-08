@@ -8,8 +8,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     linksArea: document.getElementById('linksArea'),
     statusDiv: document.getElementById('status'),
 
-    linkOptionsDiv: document.getElementById('linkOptionsDiv'), // The entire div containing radio options
-    // We still need references to these if we ever show them (for album charts)
+    linkOptionsDiv: document.getElementById('linkOptionsDiv'),
     linkTypeRadios: document.querySelectorAll('input[name="linkType"]'),
     albumLinkRadio: document.getElementById('radioAlbum'),
     albumLinkTypeLabelSpan: document.getElementById('albumLinkTypeLabelSpan'),
@@ -20,28 +19,27 @@ document.addEventListener('DOMContentLoaded', async function() {
 
   let extractedContent = [];
   let isLoggedIn = false;
-  let currentChartType = 'not_rym'; // 'album', 'song', 'unknown_rym', 'not_rym'
+  let currentChartType = 'not_rym';
   let currentTabId = null;
 
+  // --- For Aborting Operations ---
+  let currentOperationController = null; // Holds the AbortController for the current getLinks operation
+
   function getSelectedLinkType() {
-    // If it's a song chart, or options are hidden, the type is implicitly 'album' (for song/album links)
     if (currentChartType === 'song' || currentChartType === 'not_rym' || currentChartType === 'unknown_rym') {
       return 'album';
     }
-    // For album charts where options are visible:
     for (const radio of UI.linkTypeRadios) {
       if (radio.checked) {
         return radio.value;
       }
     }
-    return 'album'; // Fallback
+    return 'album';
   }
 
   function isTrackSpecificOptionEffectivelySelected() {
-    // This is only true if on an ALBUM chart AND "All Tracks" or "First Track" is selected.
     if (currentChartType !== 'album') return false;
-
-    const selected = getSelectedLinkType(); // This will reflect the actual radio button state
+    const selected = getSelectedLinkType();
     return selected === 'allTracks' || selected === 'firstTrack';
   }
 
@@ -74,18 +72,16 @@ document.addEventListener('DOMContentLoaded', async function() {
 
   function updateLinkOptionsVisibilityAndLabels() {
     if (currentChartType === 'song') {
-      UI.linkOptionsDiv.style.display = 'none'; // Hide ALL radio options for song charts
-      // No need to set label or check radio as they are hidden
+      UI.linkOptionsDiv.style.display = 'none';
     } else if (currentChartType === 'album') {
-      UI.linkOptionsDiv.style.display = 'block'; // Or your default display (e.g., 'flex')
+      UI.linkOptionsDiv.style.display = 'block';
       UI.albumLinkTypeLabelSpan.textContent = 'Album Links';
-      UI.trackSpecificOptionsContainer.style.display = 'inline'; // Show track-specific options
-      // Ensure radios are enabled; default selection (album) is fine or user's previous.
+      UI.trackSpecificOptionsContainer.style.display = 'inline';
       UI.albumLinkRadio.disabled = false;
       UI.allTracksRadio.disabled = false;
       UI.firstTrackRadio.disabled = false;
-    } else { // 'not_rym' or 'unknown_rym'
-      UI.linkOptionsDiv.style.display = 'none'; // Hide all radio options
+    } else {
+      UI.linkOptionsDiv.style.display = 'none';
     }
   }
 
@@ -128,18 +124,18 @@ document.addEventListener('DOMContentLoaded', async function() {
       UI.logoutBtn.style.display = 'none';
       UI.authStatusDiv.textContent = 'Not logged in.';
       UI.authStatusDiv.className = 'info';
-      if (isTrackOptionSelectedAndRelevant) { // Only show if track options are visible and selected
+      if (isTrackOptionSelectedAndRelevant) {
         UI.authStatusDiv.textContent += ' Login required to fetch track links.';
       }
     }
 
     let getLinksDisabled = false;
-    let getLinksStatusMessage = 'Ready. Select link type and click "Get Links".'; // Default for album charts
+    let getLinksStatusMessage = 'Ready. Select link type and click "Get Links".';
     let linksAreaHint = '';
 
     if (currentChartType === 'song') {
-      getLinksStatusMessage = 'Ready to get song links.'; // Specific message for song charts
-      getLinksDisabled = false; // "Get Links" should be enabled
+      getLinksStatusMessage = 'Ready to get song links.';
+      getLinksDisabled = false;
     } else if (currentChartType === 'not_rym') {
       getLinksDisabled = true;
       getLinksStatusMessage = 'Please navigate to an RYM page.';
@@ -149,27 +145,31 @@ document.addEventListener('DOMContentLoaded', async function() {
       getLinksStatusMessage = 'This RYM page is not a chart. Navigate to a chart page.';
       linksAreaHint = 'Not an RYM chart page.';
     } else if (currentChartType === 'album' && isTrackOptionSelectedAndRelevant && !isLoggedIn) {
-      // This is for album charts where track options are selected but user isn't logged in
       getLinksDisabled = true;
       getLinksStatusMessage = 'Please log in to Spotify to fetch track links.';
       linksAreaHint = 'Login required for this option.';
     }
-    // If it's an album chart and "Album Links" is selected, or track option selected + logged in,
-    // getLinksDisabled remains false.
+
+    // If an operation is currently in progress, keep "Get Links" disabled.
+    // The finally block of handleGetLinks will re-enable it if appropriate.
+    if (currentOperationController) {
+      getLinksDisabled = true;
+    }
 
     UI.getLinksBtn.disabled = getLinksDisabled;
 
     const previousStatusClass = UI.statusDiv.className;
-    if (getLinksDisabled) {
+    if (getLinksDisabled && !currentOperationController) { // Only reset if not actively loading
       if (currentChartType === 'not_rym' || currentChartType === 'unknown_rym') {
         extractedContent = [];
       }
       setUiState({ state: 'initial', statusMessage: getLinksStatusMessage, linksAreaMessage: linksAreaHint });
-    } else {
+    } else if (!getLinksDisabled && !currentOperationController) { // Not disabled and not loading
       if (previousStatusClass !== 'success' && previousStatusClass !== 'loading' ) {
         setUiState({ state: 'initial', statusMessage: getLinksStatusMessage });
       }
     }
+    // If currentOperationController is active, the loading/working message is already set by handleGetLinks.
   }
 
   async function checkLoginStatusAndInitUi() {
@@ -193,13 +193,15 @@ document.addEventListener('DOMContentLoaded', async function() {
 
   async function initializePopup() {
     await determineChartType();
-    updateLinkOptionsVisibilityAndLabels(); // This will hide options if it's a song chart
-    await checkLoginStatusAndInitUi();    // Then update buttons and messages
+    updateLinkOptionsVisibilityAndLabels();
+    await checkLoginStatusAndInitUi();
   }
   initializePopup();
 
 
   UI.loginBtn.addEventListener('click', async () => {
+    // If an operation is in progress, ideally we'd cancel it or prevent login.
+    // For simplicity here, we'll let it continue but the UI update might be odd.
     UI.authStatusDiv.textContent = 'Attempting to log in...';
     UI.authStatusDiv.className = 'info';
     UI.loginBtn.disabled = true;
@@ -226,6 +228,13 @@ document.addEventListener('DOMContentLoaded', async function() {
   });
 
   UI.logoutBtn.addEventListener('click', async () => {
+    // If an operation is in progress, cancel it.
+    if (currentOperationController) {
+      console.log("Logout clicked, aborting current operation.");
+      currentOperationController.abort();
+      currentOperationController = null; // Clear it
+    }
+
     UI.authStatusDiv.textContent = 'Logging out...';
     UI.authStatusDiv.className = 'info';
     UI.logoutBtn.disabled = true;
@@ -246,56 +255,104 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
   });
 
-  UI.getLinksBtn.addEventListener('click', handleGetLinks);
+  UI.getLinksBtn.addEventListener('click', async () => {
+    // If an operation is already in progress, pressing "Get Links" again should perhaps cancel the old one.
+    if (currentOperationController) {
+      console.log("Get Links clicked while an operation was in progress. Aborting previous.");
+      currentOperationController.abort();
+      // currentOperationController will be reset to null in the finally block of the aborted operation.
+      // Then a new one will be created.
+    }
+    await handleGetLinks(); // Call the refactored function
+  });
+
   UI.copyLinksBtn.addEventListener('click', handleCopyLinks);
 
-  // This listener is only relevant if options are visible (i.e., on album charts)
   UI.linkTypeRadios.forEach(radio => radio.addEventListener('change', () => {
     if (currentChartType === 'album') {
-      updateDynamicUiElements();
+      // If an operation is in progress and user changes radio, cancel the operation.
+      if (currentOperationController) {
+        console.log("Radio changed, aborting current operation.");
+        currentOperationController.abort();
+        currentOperationController = null; // Clear it, new one will be made if Get Links is pressed
+        // Update UI to reflect cancellation potential or ready state
+        setUiState({state: 'initial', statusMessage: 'Operation cancelled. Select new option.'});
+      }
+      updateDynamicUiElements(); // Update based on new selection
     }
   }));
 
 
-  async function handleGetLinks() {
+  async function handleGetLinks() { // This function is now the main orchestrator
+    // 1. Abort previous operation if any (already handled by the click listener, but good for direct calls)
+    if (currentOperationController) {
+      currentOperationController.abort();
+    }
+    currentOperationController = new AbortController(); // Create a new controller for THIS operation
+    const signal = currentOperationController.signal;
+
     UI.getLinksBtn.disabled = true;
     setUiState({ state: 'loading', statusMessage: 'Working...', linksAreaMessage: 'Extracting...' });
     extractedContent = [];
 
-    const selectedLinkTypeValue = getSelectedLinkType(); // Will be 'album' for song charts
+    const selectedLinkTypeValue = getSelectedLinkType();
 
     if (currentChartType === 'not_rym' || currentChartType === 'unknown_rym' || !currentTabId) {
       setUiState({ state: 'error', statusMessage: 'Cannot get links: Not on a valid RYM chart page.'});
+      // No 'finally' here, so manually clean up controller if error is immediate
+      if (currentOperationController && !currentOperationController.signal.aborted) {
+        currentOperationController = null;
+      }
       updateDynamicUiElements();
       return;
     }
-    // isTrackSpecificOptionEffectivelySelected is false for song charts.
-    // This check is primarily for album charts.
     if (isTrackSpecificOptionEffectivelySelected() && !isLoggedIn) {
       setUiState({ state: 'error', statusMessage: 'Cannot get links: Login required for this option.'});
+      if (currentOperationController && !currentOperationController.signal.aborted) {
+        currentOperationController = null;
+      }
       updateDynamicUiElements();
       return;
     }
 
     try {
-      // If it's a song chart, selectedLinkTypeValue is 'album', and processGeneralLinksExtraction is called.
-      // If it's an album chart, selectedLinkTypeValue is what the user picked.
       if (selectedLinkTypeValue === 'album') {
-        await processGeneralLinksExtraction(currentTabId, currentChartType);
+        await processGeneralLinksExtraction(currentTabId, currentChartType, signal);
       } else {
-        await processTrackLinksExtraction(currentTabId, selectedLinkTypeValue);
+        await processTrackLinksExtraction(currentTabId, selectedLinkTypeValue, signal);
       }
+      // If successful and not aborted, the controller is done with.
+      // If aborted, the catch block handles it.
     } catch (error) {
-      console.error("Error in Get Links:", error);
-      setUiState({ state: 'error', statusMessage: `Error: ${error.message}` });
+      if (error.name === 'AbortError') {
+        console.log('Operation aborted by user.');
+        setUiState({ state: 'info', statusMessage: 'Operation cancelled.', linksAreaMessage: 'Cancelled.' });
+      } else {
+        console.error("Error in Get Links:", error);
+        setUiState({ state: 'error', statusMessage: `Error: ${error.message}` });
+      }
     } finally {
-      updateDynamicUiElements();
+      // Operation finished (successfully, errored, or aborted)
+      // Clear the controller for this operation
+      if (currentOperationController === signal.controller) { // Ensure it's the same controller
+        currentOperationController = null;
+      }
+      updateDynamicUiElements(); // Re-evaluate button states etc.
     }
   }
 
-  async function processGeneralLinksExtraction(tabId, chartTypeForContext) {
+  // Modified to accept and use AbortSignal
+  async function processGeneralLinksExtraction(tabId, chartTypeForContext, signal) {
+    // Check if aborted before even starting the message send
+    if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
+
+    // tabs.sendMessage doesn't directly support AbortSignal for cancellation of the message *sending*
+    // but the content script could potentially be made aware of an abort.
+    // For now, we mainly rely on checking signal.aborted between steps.
     const response = await browser.tabs.sendMessage(tabId, { action: "extractSpotifyLinks" });
-    // chartTypeForContext is currentChartType, which will be 'song' or 'album'
+
+    if (signal.aborted) throw new DOMException('Aborted', 'AbortError'); // Check after response
+
     const linkTypeName = chartTypeForContext === 'song' ? 'song' : 'album';
 
     if (response && response.links) {
@@ -319,8 +376,13 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
   }
 
-  async function processTrackLinksExtraction(tabId, selectedLinkTypeValue) {
+  // Modified to accept and use AbortSignal
+  async function processTrackLinksExtraction(tabId, selectedLinkTypeValue, signal) {
+    if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
+
     const albumIdResponse = await browser.tabs.sendMessage(tabId, { action: "extractSpotifyAlbumIds" });
+    if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
+
     console.log("POPUP: Received albumIdResponse:", JSON.stringify(albumIdResponse, null, 2));
 
     if (!albumIdResponse || !albumIdResponse.albums || albumIdResponse.albums.length === 0) {
@@ -337,6 +399,8 @@ document.addEventListener('DOMContentLoaded', async function() {
     });
 
     for (let i = 0; i < albums.length; i++) {
+      if (signal.aborted) throw new DOMException('Aborted', 'AbortError'); // Check before each album fetch
+
       const albumData = albums[i];
       setUiState({
         state: 'loading',
@@ -344,10 +408,22 @@ document.addEventListener('DOMContentLoaded', async function() {
       });
 
       try {
+        // browser.runtime.sendMessage also doesn't directly take an AbortSignal for the message dispatch.
+        // However, the background script's fetch *can* use it if we pass the signal along.
+        // For simplicity here, we'll check the signal before and after the message.
+        // A more advanced solution would involve the background script also listening for an abort message.
+        if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
+
         const trackResponse = await browser.runtime.sendMessage({
           action: "getAlbumTracksFromSpotify",
           albumId: albumData.id
+          // TODO: Consider how to propagate the signal to the background script's fetch.
+          // One way is to send another message like "cancelOperation" with an ID.
+          // Or, if background script is simple enough, it just completes its current fetch.
         });
+
+        if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
+
 
         if (trackResponse && trackResponse.needsLogin) {
           isLoggedIn = false;
@@ -370,11 +446,24 @@ document.addEventListener('DOMContentLoaded', async function() {
           console.warn(`POPUP: No tracks or unexpected response for album ${albumData.id} ("${albumData.title}"):`, trackResponse);
         }
       } catch (e) {
+        // If the error is an AbortError from our signal checks, rethrow it to be caught by handleGetLinks
+        if (e.name === 'AbortError') throw e;
         console.error(`POPUP: Error messaging background for album ${albumData.id} ("${albumData.title}"):`, e);
       }
+
+      if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
       let TRACK_FETCH_DELAY_MS = 150;
-      await new Promise(resolve => setTimeout(resolve, TRACK_FETCH_DELAY_MS));
+      // Make the delay itself abortable
+      await new Promise((resolve, reject) => {
+        const timeoutId = setTimeout(resolve, TRACK_FETCH_DELAY_MS);
+        signal.addEventListener('abort', () => {
+          clearTimeout(timeoutId);
+          reject(new DOMException('Aborted', 'AbortError'));
+        });
+      });
     }
+
+    if (signal.aborted) throw new DOMException('Aborted', 'AbortError'); // Final check
 
     if (extractedContent.length > 0) {
       setUiState({
@@ -395,6 +484,8 @@ document.addEventListener('DOMContentLoaded', async function() {
   }
 
   function handleCopyLinks() {
+    // Similar to Get Links, if an operation is ongoing, copy shouldn't interfere or be blocked by it.
+    // This function is simple enough not to need abortion.
     if (extractedContent.length > 0) {
       navigator.clipboard.writeText(extractedContent.join('\n')).then(() => {
         const originalStatus = UI.statusDiv.textContent;
