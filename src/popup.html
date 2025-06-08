@@ -7,7 +7,7 @@
     button { margin: 5px 0; padding: 8px; width: 100%; cursor: pointer; }
     textarea { width: 95%; height: 150px; margin-top: 10px; }
     #status, #authStatus { font-size: 0.9em; color: #333; margin-top: 5px; min-height: 1.2em; }
-    .options label { margin-right: 15px; font-size: 0.9em;}
+    .options label { margin-right: 15px; font-size: 0.9em; display: inline-block; }
     .error { color: red; }
     .success { color: green; }
     .info { color: blue; }
@@ -24,10 +24,12 @@
 </div>
 <div id="authStatus" class="info">Checking login status...</div>
 
-<div class="options" style="margin-top: 10px;">
+<div class="options" id="linkOptionsDiv" style="margin-top: 10px;">
   <label><input type="radio" name="linkType" value="album" id="radioAlbum" checked> <span id="albumLinkTypeLabelSpan">Album Links</span></label>
-  <label><input type="radio" name="linkType" value="allTracks" id="radioAllTracks"> All Tracks</label>
-  <label><input type="radio" name="linkType" value="firstTrack" id="radioFirstTrack"> First Track</label>
+  <span id="trackSpecificOptionsContainer">
+    <label><input type="radio" name="linkType" value="allTracks" id="radioAllTracks"> All Tracks</label>
+    <label><input type="radio" name="linkType" value="firstTrack" id="radioFirstTrack"> First Track</label>
+  </span>
 </div>
 
 <button id="getLinksBtn" disabled>Get Links</button>

@@ -7,30 +7,41 @@ document.addEventListener('DOMContentLoaded', async function() {
     copyLinksBtn: document.getElementById('copyLinksBtn'),
     linksArea: document.getElementById('linksArea'),
     statusDiv: document.getElementById('status'),
+
+    linkOptionsDiv: document.getElementById('linkOptionsDiv'), // The entire div containing radio options
+    // We still need references to these if we ever show them (for album charts)
     linkTypeRadios: document.querySelectorAll('input[name="linkType"]'),
     albumLinkRadio: document.getElementById('radioAlbum'),
+    albumLinkTypeLabelSpan: document.getElementById('albumLinkTypeLabelSpan'),
+    trackSpecificOptionsContainer: document.getElementById('trackSpecificOptionsContainer'),
     allTracksRadio: document.getElementById('radioAllTracks'),
     firstTrackRadio: document.getElementById('radioFirstTrack'),
-    albumLinkTypeLabelSpan: document.getElementById('albumLinkTypeLabelSpan'),
   };
 
   let extractedContent = [];
   let isLoggedIn = false;
   let currentChartType = 'not_rym'; // 'album', 'song', 'unknown_rym', 'not_rym'
   let currentTabId = null;
-  // let currentTabUrl = null; // Not strictly needed globally if currentTabId and currentChartType are enough
 
   function getSelectedLinkType() {
+    // If it's a song chart, or options are hidden, the type is implicitly 'album' (for song/album links)
+    if (currentChartType === 'song' || currentChartType === 'not_rym' || currentChartType === 'unknown_rym') {
+      return 'album';
+    }
+    // For album charts where options are visible:
     for (const radio of UI.linkTypeRadios) {
       if (radio.checked) {
         return radio.value;
       }
     }
-    return 'album';
+    return 'album'; // Fallback
   }
 
-  function isTrackSpecificOptionSelected() {
-    const selected = getSelectedLinkType();
+  function isTrackSpecificOptionEffectivelySelected() {
+    // This is only true if on an ALBUM chart AND "All Tracks" or "First Track" is selected.
+    if (currentChartType !== 'album') return false;
+
+    const selected = getSelectedLinkType(); // This will reflect the actual radio button state
     return selected === 'allTracks' || selected === 'firstTrack';
   }
 
@@ -61,32 +72,26 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
   }
 
-  function updateRadioButtonsBasedOnChartType() {
-    UI.albumLinkTypeLabelSpan.textContent = 'Album Links';
-    UI.allTracksRadio.disabled = false;
-    UI.firstTrackRadio.disabled = false;
-    UI.albumLinkRadio.disabled = false;
-
+  function updateLinkOptionsVisibilityAndLabels() {
     if (currentChartType === 'song') {
-      UI.albumLinkTypeLabelSpan.textContent = 'Song Links';
-      UI.allTracksRadio.disabled = true;
-      UI.firstTrackRadio.disabled = true;
-
-      if (UI.allTracksRadio.checked || UI.firstTrackRadio.checked) {
-        UI.albumLinkRadio.checked = true;
-      }
-    }
-     else { // 'not_rym' or 'unknown_rym'
-      UI.albumLinkTypeLabelSpan.textContent = 'Links'; // Generic
-      UI.albumLinkRadio.disabled = true;
-      UI.allTracksRadio.disabled = true;
-      UI.firstTrackRadio.disabled = true;
+      UI.linkOptionsDiv.style.display = 'none'; // Hide ALL radio options for song charts
+      // No need to set label or check radio as they are hidden
+    } else if (currentChartType === 'album') {
+      UI.linkOptionsDiv.style.display = 'block'; // Or your default display (e.g., 'flex')
+      UI.albumLinkTypeLabelSpan.textContent = 'Album Links';
+      UI.trackSpecificOptionsContainer.style.display = 'inline'; // Show track-specific options
+      // Ensure radios are enabled; default selection (album) is fine or user's previous.
+      UI.albumLinkRadio.disabled = false;
+      UI.allTracksRadio.disabled = false;
+      UI.firstTrackRadio.disabled = false;
+    } else { // 'not_rym' or 'unknown_rym'
+      UI.linkOptionsDiv.style.display = 'none'; // Hide all radio options
     }
   }
 
   function setUiState(config) {
     const {
-      state, // 'initial', 'loading', 'success', 'error', 'info'
+      state,
       statusMessage = '',
       linksAreaMessage = '',
     } = config;
@@ -105,16 +110,14 @@ document.addEventListener('DOMContentLoaded', async function() {
       case 'loading': UI.statusDiv.className = 'info'; break;
       case 'success': UI.statusDiv.className = 'success'; break;
       case 'error': UI.statusDiv.className = 'error'; break;
-      case 'info': UI.statusDiv.className = 'info'; break; // For "No links found" etc.
+      case 'info': UI.statusDiv.className = 'info'; break;
       default: UI.statusDiv.className = '';
     }
   }
 
   function updateDynamicUiElements() {
-    const selectedLinkTypeValue = getSelectedLinkType();
-    const isTrackOption = isTrackSpecificOptionSelected();
+    const isTrackOptionSelectedAndRelevant = isTrackSpecificOptionEffectivelySelected();
 
-    // 1. Login/Logout buttons and Auth Status
     if (isLoggedIn) {
       UI.loginBtn.style.display = 'none';
       UI.logoutBtn.style.display = 'block';
@@ -125,17 +128,19 @@ document.addEventListener('DOMContentLoaded', async function() {
       UI.logoutBtn.style.display = 'none';
       UI.authStatusDiv.textContent = 'Not logged in.';
       UI.authStatusDiv.className = 'info';
-      if (isTrackOption && (currentChartType === 'album')) { // Only show login hint if track option is viable
+      if (isTrackOptionSelectedAndRelevant) { // Only show if track options are visible and selected
         UI.authStatusDiv.textContent += ' Login required to fetch track links.';
       }
     }
 
-    // 2. "Get Links" button state and related status message
     let getLinksDisabled = false;
-    let getLinksStatusMessage = 'Ready. Select link type and click "Get Links".'; // Default ready message
-    let linksAreaHint = ''; // Specific message for linksArea when disabled
+    let getLinksStatusMessage = 'Ready. Select link type and click "Get Links".'; // Default for album charts
+    let linksAreaHint = '';
 
-    if (currentChartType === 'not_rym') {
+    if (currentChartType === 'song') {
+      getLinksStatusMessage = 'Ready to get song links.'; // Specific message for song charts
+      getLinksDisabled = false; // "Get Links" should be enabled
+    } else if (currentChartType === 'not_rym') {
       getLinksDisabled = true;
       getLinksStatusMessage = 'Please navigate to an RYM page.';
       linksAreaHint = 'Not an RYM page.';
@@ -143,31 +148,27 @@ document.addEventListener('DOMContentLoaded', async function() {
       getLinksDisabled = true;
       getLinksStatusMessage = 'This RYM page is not a chart. Navigate to a chart page.';
       linksAreaHint = 'Not an RYM chart page.';
-    } else if (currentChartType === 'song' && isTrackOption) {
-      getLinksDisabled = true;
-      getLinksStatusMessage = 'Track-specific options are not available for song charts.';
-      linksAreaHint = 'This option is not available for song charts.';
-    } else if (isTrackOption && !isLoggedIn) { // Applies only to album charts due to previous condition
+    } else if (currentChartType === 'album' && isTrackOptionSelectedAndRelevant && !isLoggedIn) {
+      // This is for album charts where track options are selected but user isn't logged in
       getLinksDisabled = true;
       getLinksStatusMessage = 'Please log in to Spotify to fetch track links.';
       linksAreaHint = 'Login required for this option.';
     }
+    // If it's an album chart and "Album Links" is selected, or track option selected + logged in,
+    // getLinksDisabled remains false.
 
     UI.getLinksBtn.disabled = getLinksDisabled;
 
-    // 3. Status Div and Links Area based on current state
     const previousStatusClass = UI.statusDiv.className;
-
     if (getLinksDisabled) {
-      extractedContent = []; // Clear data if options made it invalid
+      if (currentChartType === 'not_rym' || currentChartType === 'unknown_rym') {
+        extractedContent = [];
+      }
       setUiState({ state: 'initial', statusMessage: getLinksStatusMessage, linksAreaMessage: linksAreaHint });
-    } else { // getLinksBtn is enabled
-      if (previousStatusClass !== 'success') {
-        // Not currently showing successful results, so reset to "Ready".
+    } else {
+      if (previousStatusClass !== 'success' && previousStatusClass !== 'loading' ) {
         setUiState({ state: 'initial', statusMessage: getLinksStatusMessage });
       }
-      // If previousStatusClass WAS 'success', results are shown, keep them.
-      // The getLinksStatusMessage is "Ready...", which is appropriate.
     }
   }
 
@@ -187,19 +188,17 @@ document.addEventListener('DOMContentLoaded', async function() {
       UI.authStatusDiv.textContent = "Could not check login status.";
       UI.authStatusDiv.className = 'error';
     }
-    updateDynamicUiElements(); // Update based on login status and other factors
+    updateDynamicUiElements();
   }
 
-  // --- Initial Setup ---
   async function initializePopup() {
     await determineChartType();
-    updateRadioButtonsBasedOnChartType(); // Update radio labels/disabled state first
-    await checkLoginStatusAndInitUi();    // Then check login and update the rest
+    updateLinkOptionsVisibilityAndLabels(); // This will hide options if it's a song chart
+    await checkLoginStatusAndInitUi();    // Then update buttons and messages
   }
   initializePopup();
 
 
-  // --- Event Listeners ---
   UI.loginBtn.addEventListener('click', async () => {
     UI.authStatusDiv.textContent = 'Attempting to log in...';
     UI.authStatusDiv.className = 'info';
@@ -211,7 +210,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         UI.authStatusDiv.textContent = `Login failed: ${response.error}`;
         UI.authStatusDiv.className = 'error';
       } else if (response && response.success) {
-        isLoggedIn = true; // Successfully logged in
+        isLoggedIn = true;
       } else {
         isLoggedIn = false;
         UI.authStatusDiv.textContent = 'Login attempt finished with unclear result.';
@@ -223,7 +222,7 @@ document.addEventListener('DOMContentLoaded', async function() {
       UI.authStatusDiv.className = 'error';
     }
     UI.loginBtn.disabled = false;
-    updateDynamicUiElements(); // Update all relevant UI parts
+    updateDynamicUiElements();
   });
 
   UI.logoutBtn.addEventListener('click', async () => {
@@ -240,8 +239,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
     UI.logoutBtn.disabled = false;
     extractedContent = [];
-    updateDynamicUiElements(); // Update all relevant UI parts
-    // Explicitly set logged out message if not already handled by updateDynamicUiElements
+    updateDynamicUiElements();
     if (!isLoggedIn && UI.authStatusDiv.className !== 'error') {
       UI.authStatusDiv.textContent = 'Logged out.';
       UI.authStatusDiv.className = 'info';
@@ -251,53 +249,53 @@ document.addEventListener('DOMContentLoaded', async function() {
   UI.getLinksBtn.addEventListener('click', handleGetLinks);
   UI.copyLinksBtn.addEventListener('click', handleCopyLinks);
 
+  // This listener is only relevant if options are visible (i.e., on album charts)
   UI.linkTypeRadios.forEach(radio => radio.addEventListener('change', () => {
-    // When radio changes, chart type and login status are the same,
-    // but the selected option changes, so update UI accordingly.
-    updateDynamicUiElements();
+    if (currentChartType === 'album') {
+      updateDynamicUiElements();
+    }
   }));
 
 
   async function handleGetLinks() {
-    UI.getLinksBtn.disabled = true; // Disable during operation
+    UI.getLinksBtn.disabled = true;
     setUiState({ state: 'loading', statusMessage: 'Working...', linksAreaMessage: 'Extracting...' });
     extractedContent = [];
 
-    const selectedLinkTypeValue = getSelectedLinkType();
+    const selectedLinkTypeValue = getSelectedLinkType(); // Will be 'album' for song charts
 
-    // Perform safety checks again, though UI should prevent this
     if (currentChartType === 'not_rym' || currentChartType === 'unknown_rym' || !currentTabId) {
       setUiState({ state: 'error', statusMessage: 'Cannot get links: Not on a valid RYM chart page.'});
-      updateDynamicUiElements(); return;
+      updateDynamicUiElements();
+      return;
     }
-    if (currentChartType === 'song' && isTrackSpecificOptionSelected()) {
-      setUiState({ state: 'error', statusMessage: 'Cannot get links: Invalid option for song chart.'});
-      updateDynamicUiElements(); return;
-    }
-    if (isTrackSpecificOptionSelected() && !isLoggedIn) {
+    // isTrackSpecificOptionEffectivelySelected is false for song charts.
+    // This check is primarily for album charts.
+    if (isTrackSpecificOptionEffectivelySelected() && !isLoggedIn) {
       setUiState({ state: 'error', statusMessage: 'Cannot get links: Login required for this option.'});
-      updateDynamicUiElements(); return;
+      updateDynamicUiElements();
+      return;
     }
 
     try {
-      if (selectedLinkTypeValue === 'album') { // Covers "Album Links" and "Song Links"
+      // If it's a song chart, selectedLinkTypeValue is 'album', and processGeneralLinksExtraction is called.
+      // If it's an album chart, selectedLinkTypeValue is what the user picked.
+      if (selectedLinkTypeValue === 'album') {
         await processGeneralLinksExtraction(currentTabId, currentChartType);
-      } else { // 'allTracks' or 'firstTrack' (only for 'album' chart type)
+      } else {
         await processTrackLinksExtraction(currentTabId, selectedLinkTypeValue);
       }
     } catch (error) {
       console.error("Error in Get Links:", error);
       setUiState({ state: 'error', statusMessage: `Error: ${error.message}` });
     } finally {
-      // Refresh UI state, which will re-enable GetLinksBtn if appropriate
-      // and preserve success/error messages if they were set by processing functions.
       updateDynamicUiElements();
     }
   }
 
-  // Renamed from processAlbumLinksExtraction
   async function processGeneralLinksExtraction(tabId, chartTypeForContext) {
     const response = await browser.tabs.sendMessage(tabId, { action: "extractSpotifyLinks" });
+    // chartTypeForContext is currentChartType, which will be 'song' or 'album'
     const linkTypeName = chartTypeForContext === 'song' ? 'song' : 'album';
 
     if (response && response.links) {
@@ -309,7 +307,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         });
       } else {
         setUiState({
-          state: 'info', // Using 'info' for "not found" type messages
+          state: 'info',
           statusMessage: `No Spotify ${linkTypeName} links found on this page.`,
           linksAreaMessage: `No Spotify ${linkTypeName} links found here.`
         });
@@ -333,7 +331,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 
     const albums = albumIdResponse.albums;
-    UI.getLinksBtn.disabled = true; // Keep disabled during multi-step fetching
     setUiState({
       state: 'loading',
       statusMessage: `Found ${albums.length} albums. Fetching tracks... (0/${albums.length})`,
@@ -341,12 +338,10 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     for (let i = 0; i < albums.length; i++) {
       const albumData = albums[i];
-      // Update status for each album
       setUiState({
         state: 'loading',
         statusMessage: `Fetching tracks for "${albumData.title}" (${i + 1}/${albums.length})...`,
       });
-
 
       try {
         const trackResponse = await browser.runtime.sendMessage({
@@ -361,12 +356,10 @@ document.addEventListener('DOMContentLoaded', async function() {
             statusMessage: 'Spotify session error. Please log in again.',
             linksAreaMessage: 'Login required.'
           });
-          // updateDynamicUiElements() will be called in finally of handleGetLinks
           return;
         }
         if (trackResponse && trackResponse.error) {
           console.warn(`POPUP: BG error for album ${albumData.id} ("${albumData.title}"): ${trackResponse.error}`);
-          // Optionally add to a list of errors to display, or just log
         } else if (trackResponse && Array.isArray(trackResponse.tracks) && trackResponse.tracks.length > 0) {
           if (selectedLinkTypeValue === 'allTracks') {
             extractedContent.push(...trackResponse.tracks);
@@ -378,7 +371,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
       } catch (e) {
         console.error(`POPUP: Error messaging background for album ${albumData.id} ("${albumData.title}"):`, e);
-        // Potentially stop or show a partial error
       }
       let TRACK_FETCH_DELAY_MS = 150;
       await new Promise(resolve => setTimeout(resolve, TRACK_FETCH_DELAY_MS));
@@ -390,7 +382,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         statusMessage: `Extracted ${extractedContent.length} track links.`
       });
     } else {
-      // Check if failure was due to login, though prior checks should catch this
       if (!isLoggedIn && (selectedLinkTypeValue === 'allTracks' || selectedLinkTypeValue === 'firstTrack')) {
         setUiState({ state: 'error', statusMessage: 'Login required to fetch tracks. Please log in.' });
       } else {
@@ -408,14 +399,11 @@ document.addEventListener('DOMContentLoaded', async function() {
       navigator.clipboard.writeText(extractedContent.join('\n')).then(() => {
         const originalStatus = UI.statusDiv.textContent;
         const originalClassName = UI.statusDiv.className;
-
         UI.statusDiv.textContent = 'Links copied to clipboard!';
-        UI.statusDiv.className = 'success temporary-copy-status'; // You might want a specific class for temporary
+        UI.statusDiv.className = 'success temporary-copy-status';
         UI.copyLinksBtn.textContent = 'Copied!';
-
         setTimeout(() => {
           UI.copyLinksBtn.textContent = 'Copy Links';
-          // Restore previous status only if it wasn't overwritten by another user action
           if (UI.statusDiv.textContent === 'Links copied to clipboard!') {
             UI.statusDiv.textContent = originalStatus;
             UI.statusDiv.className = originalClassName;
@@ -425,7 +413,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         console.error('Failed to copy links: ', err);
         const originalStatus = UI.statusDiv.textContent;
         const originalClassName = UI.statusDiv.className;
-
         UI.statusDiv.textContent = 'Failed to copy.';
         UI.statusDiv.className = 'error temporary-copy-status';
         setTimeout(() => {
