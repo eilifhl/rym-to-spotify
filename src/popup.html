@@ -1,32 +1,74 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>RYM Spotify Extractor</title>
-  <style>
-    body { font-family: sans-serif; width: 350px; padding: 10px; }
-    button { margin: 5px 0; padding: 8px; width: 100%; cursor: pointer; }
-    textarea { width: 95%; height: 150px; margin-top: 10px; }
-    #status, #authStatus { font-size: 0.9em; color: #333; margin-top: 5px; min-height: 1.2em; }
-    .options label { margin-right: 15px; font-size: 0.9em; display: inline-block; }
-    .error { color: red; }
-    .success { color: green; }
-    .info { color: blue; }
-    #authSection button { width: calc(50% - 2px); margin-right: 4px; }
-    #authSection button:last-child { margin-right: 0; }
-  </style>
+    <title>RYM Spotify Extractor</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            width: 350px;
+            padding: 10px;
+        }
+
+        button {
+            margin: 5px 0;
+            padding: 8px;
+            width: 100%;
+            cursor: pointer;
+        }
+
+        textarea {
+            width: 95%;
+            height: 150px;
+            margin-top: 10px;
+        }
+
+        #status, #authStatus {
+            font-size: 0.9em;
+            color: #333;
+            margin-top: 5px;
+            min-height: 1.2em;
+        }
+
+        .options label {
+            margin-right: 15px;
+            font-size: 0.9em;
+            display: inline-block;
+        }
+
+        .error {
+            color: red;
+        }
+
+        .success {
+            color: green;
+        }
+
+        .info {
+            color: blue;
+        }
+
+        #authSection button {
+            width: calc(50% - 2px);
+            margin-right: 4px;
+        }
+
+        #authSection button:last-child {
+            margin-right: 0;
+        }
+    </style>
 </head>
 <body>
 <h3>RYM Spotify Extractor</h3>
 
 <div id="authSection">
-  <button id="loginBtn">Login with Spotify</button>
-  <button id="logoutBtn" style="display:none;">Logout</button>
+    <button id="loginBtn">Login with Spotify</button>
+    <button id="logoutBtn" style="display:none;">Logout</button>
 </div>
 <div id="authStatus" class="info">Checking login status...</div>
 
 <div class="options" id="linkOptionsDiv" style="margin-top: 10px;">
-  <label><input type="radio" name="linkType" value="album" id="radioAlbum" checked> <span id="albumLinkTypeLabelSpan">Album Links</span></label>
-  <span id="trackSpecificOptionsContainer">
+    <label><input type="radio" name="linkType" value="album" id="radioAlbum" checked> <span id="albumLinkTypeLabelSpan">Album Links</span></label>
+    <span id="trackSpecificOptionsContainer">
     <label><input type="radio" name="linkType" value="allTracks" id="radioAllTracks"> All Tracks</label>
     <label><input type="radio" name="linkType" value="firstTrack" id="radioFirstTrack"> First Track</label>
   </span>
@@ -35,7 +77,7 @@
 <button id="getLinksBtn" disabled>Get Links</button>
 <button id="copyLinksBtn" disabled>Copy Links</button>
 <textarea id="linksArea" placeholder="Spotify links will appear here..."></textarea>
-<div id="status"></div> <!-- General operation status -->
+<div id="status"></div>
 
 <script src="popup.js"></script>
 </body>
