@@ -404,7 +404,6 @@ document.addEventListener('DOMContentLoaded', async function () {
                 const trackResponse = await browser.runtime.sendMessage({
                     action: "getAlbumTracksFromSpotify",
                     albumId: albumData.id
-                    // TODO: Consider how to propagate the signal to the background script's fetch.
                 });
 
                 if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
