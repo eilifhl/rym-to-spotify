@@ -15,7 +15,7 @@
     "https://accounts.spotify.com/*"
   ],
   "action": {
-    "default_popup": "popup.html",
+    "default_popup": "src/popup.html",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",
@@ -28,12 +28,12 @@
     "128": "icons/icon128.png"
   },
   "background": {
-    "scripts": ["background.js"] 
+    "scripts": ["src/background.js"]
   },
   "content_scripts": [
     {
       "matches": ["*://rateyourmusic.com/charts/*"],
-      "js": ["content_script.js"]
+      "js": ["src/content_script.js"]
     }
   ],
   "browser_specific_settings": {
