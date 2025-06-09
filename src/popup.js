@@ -434,7 +434,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             }
 
             if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
-            let TRACK_FETCH_DELAY_MS = 150; // Keep your delay
+            const TRACK_FETCH_DELAY_MS = 150; // Keep your delay
             await new Promise((resolve, reject) => {
                 const timeoutId = setTimeout(resolve, TRACK_FETCH_DELAY_MS);
                 signal.addEventListener('abort', () => {
