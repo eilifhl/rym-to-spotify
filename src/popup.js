@@ -367,7 +367,6 @@ document.addEventListener('DOMContentLoaded', async function () {
         }
     }
 
-    // Modified to accept and use AbortSignal
     async function processTrackLinksExtraction(tabId, selectedLinkTypeValue, signal) {
         if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
 
@@ -390,7 +389,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         });
 
         for (let i = 0; i < albums.length; i++) {
-            if (signal.aborted) throw new DOMException('Aborted', 'AbortError'); // Check before each album fetch
+            if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
 
             const albumData = albums[i];
             setUiState({
@@ -435,7 +434,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             }
 
             if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
-            let TRACK_FETCH_DELAY_MS = 150;
+            let TRACK_FETCH_DELAY_MS = 150; // Keep your delay
             await new Promise((resolve, reject) => {
                 const timeoutId = setTimeout(resolve, TRACK_FETCH_DELAY_MS);
                 signal.addEventListener('abort', () => {
@@ -445,17 +444,24 @@ document.addEventListener('DOMContentLoaded', async function () {
             });
         }
 
-        if (signal.aborted) throw new DOMException('Aborted', 'AbortError'); // Final check
+        if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
+
+        if (extractedContent.length > 0) {
+            const originalCount = extractedContent.length;
+            extractedContent = [...new Set(extractedContent)];
+            console.log(`POPUP: De-duplicated track links. Original: ${originalCount}, Unique: ${extractedContent.length}`);
+        }
 
         if (extractedContent.length > 0) {
             setUiState({
                 state: 'success',
-                statusMessage: `Extracted ${extractedContent.length} track links.`
+                statusMessage: `Extracted ${extractedContent.length} unique track links.` // Updated message
             });
         } else {
+            // Error states or "no tracks found" states are handled based on earlier logic or loop results
             if (!isLoggedIn && (selectedLinkTypeValue === 'allTracks' || selectedLinkTypeValue === 'firstTrack')) {
-                setUiState({state: 'error', statusMessage: 'Login required to fetch tracks. Please log in.'});
-            } else {
+                setUiState({state: 'error', statusMessage: 'Login required to fetch tracks. Please log in.', linksAreaMessage: 'Login required.'});
+            } else if (!signal.aborted) { // Only show "no tracks" if not aborted
                 setUiState({
                     state: 'info',
                     statusMessage: 'No tracks found for the albums on this page, or errors occurred during fetch.',

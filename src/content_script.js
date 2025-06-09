@@ -25,7 +25,13 @@ function parseJsonSafe(jsonString, context = "data") {
  */
 function getAlbumTitle(mediaContainerEl) {
   const chartItemElement = mediaContainerEl.closest('.page_charts_section_charts_item');
-  const titleElement = chartItemElement?.querySelector('.page_charts_section_charts_item_title .release .ui_name_locale_original');
+  let titleElement = chartItemElement?.querySelector('.page_charts_section_charts_item_title .release .ui_name_locale_original');
+  if (!titleElement) { // Fallback for song titles or if structure differs slightly
+    titleElement = chartItemElement?.querySelector('.page_charts_section_charts_item_title > a .ui_name_locale_original');
+  }
+  if (!titleElement) { // Broader fallback
+    titleElement = chartItemElement?.querySelector('.page_charts_section_charts_item_title > a');
+  }
   return titleElement ? titleElement.textContent.trim() : "Unknown Album";
 }
 
@@ -33,10 +39,11 @@ function getAlbumTitle(mediaContainerEl) {
 
 /**
  * Extracts Spotify album IDs and titles from the RYM chart page.
+ * Ensures unique album IDs are returned, prioritizing the first album-type link per item.
  * @returns {{albums: Array<{id: string, title: string}>}}
  */
 function extractSpotifyAlbumIds() {
-  const spotifyAlbumData = [];
+  const uniqueAlbums = new Map();
   const mediaLinkContainers = document.querySelectorAll('div[id^="media_link_button_container_charts_"]');
   console.log(`CS: Found ${mediaLinkContainers.length} media link containers for album IDs.`);
 
@@ -44,31 +51,44 @@ function extractSpotifyAlbumIds() {
     const dataLinksJson = container.getAttribute('data-links');
     const dataLinks = parseJsonSafe(dataLinksJson, "album ID data-links");
 
-    if (!dataLinks || !dataLinks.spotify) return;
-    
+    if (!dataLinks || !dataLinks.spotify || Object.keys(dataLinks.spotify).length === 0) return;
+
     const albumTitle = getAlbumTitle(container);
 
+    let chosenSpotifyIdForAlbum = null;
+
+    // Prioritize default if available, otherwise first album type
     for (const spotifyId in dataLinks.spotify) {
       const spotifyEntry = dataLinks.spotify[spotifyId];
-      // Prioritize entries explicitly typed as "album" or untyped (assumed album).
-      if (spotifyEntry.type === "album" || !spotifyEntry.type) {
-        console.log(`CS: Found Spotify album ID: ${spotifyId} for title: "${albumTitle}"`);
-        spotifyAlbumData.push({ id: spotifyId, title: albumTitle });
-        break; 
+      if (spotifyEntry.type === "album") {
+        if (spotifyEntry.default === true) {
+          chosenSpotifyIdForAlbum = spotifyId;
+          break;
+        }
+        if (!chosenSpotifyIdForAlbum) {
+          chosenSpotifyIdForAlbum = spotifyId;
+        }
       }
+    }
+
+    if (chosenSpotifyIdForAlbum && !uniqueAlbums.has(chosenSpotifyIdForAlbum)) {
+      console.log(`CS: Found Spotify album ID: ${chosenSpotifyIdForAlbum} for title: "${albumTitle}"`);
+      uniqueAlbums.set(chosenSpotifyIdForAlbum, albumTitle);
     }
   });
 
-  console.log("CS: Extracted album ID data:", spotifyAlbumData);
+  const spotifyAlbumData = Array.from(uniqueAlbums, ([id, title]) => ({ id, title }));
+  console.log("CS: Extracted unique album ID data:", spotifyAlbumData);
   return { albums: spotifyAlbumData };
 }
 
 /**
  * Extracts Spotify links (album, track, playlist) from the RYM chart page.
+ * Prioritizes the 'default' link, otherwise picks the first available link per RYM item.
  * @returns {{links: string[]}}
  */
 function extractSpotifyLinks() {
-  const spotifyLinks = new Set(); // Use Set to avoid duplicate links
+  const spotifyLinks = new Set(); // Use Set to avoid duplicate links from different items that might point to the same URL
   const mediaLinkContainers = document.querySelectorAll('div[id^="media_link_button_container_charts_"]');
   console.log(`CS: Found ${mediaLinkContainers.length} media link containers for general links.`);
 
@@ -76,14 +96,44 @@ function extractSpotifyLinks() {
     const dataLinksJson = container.getAttribute('data-links');
     const dataLinks = parseJsonSafe(dataLinksJson, "general link data-links");
 
-    if (!dataLinks || !dataLinks.spotify) return;
+    if (!dataLinks || !dataLinks.spotify || Object.keys(dataLinks.spotify).length === 0) return;
+
+    let chosenSpotifyId = null;
+    let chosenSpotifyEntry = null;
 
     for (const spotifyId in dataLinks.spotify) {
       const spotifyEntry = dataLinks.spotify[spotifyId];
+      if (spotifyEntry.default === true && spotifyEntry.type) {
+        chosenSpotifyId = spotifyId;
+        chosenSpotifyEntry = spotifyEntry;
+        break; // Found default, use this one
+      }
+    }
+
+    if (!chosenSpotifyId) {
+      for (const spotifyId in dataLinks.spotify) {
+        const spotifyEntry = dataLinks.spotify[spotifyId];
+        if (spotifyEntry.type) {
+          chosenSpotifyId = spotifyId;
+          chosenSpotifyEntry = spotifyEntry;
+          break;
+        }
+      }
+    }
+
+    if (!chosenSpotifyId && Object.keys(dataLinks.spotify).length > 0) {
+      const firstSpotifyId = Object.keys(dataLinks.spotify)[0];
+      chosenSpotifyId = firstSpotifyId;
+      chosenSpotifyEntry = dataLinks.spotify[firstSpotifyId];
+    }
+
+
+    // If we have a chosen ID and its entry, construct the link
+    if (chosenSpotifyId && chosenSpotifyEntry) {
       let linkType = "album";
 
-      if (spotifyEntry.type) {
-        switch (spotifyEntry.type.toLowerCase()) {
+      if (chosenSpotifyEntry.type) {
+        switch (chosenSpotifyEntry.type.toLowerCase()) {
           case "track":
           case "tracks":
             linkType = "track";
@@ -92,9 +142,13 @@ function extractSpotifyLinks() {
           case "playlists":
             linkType = "playlist";
             break;
+          case "album":
+            linkType = "album";
+            break;
         }
       }
-      const spotifyUrl = `https://open.spotify.com/${linkType}/${spotifyId}`;
+
+      const spotifyUrl = `https://open.spotify.com/${linkType}/${chosenSpotifyId}`;
       spotifyLinks.add(spotifyUrl);
     }
   });
