@@ -26,6 +26,9 @@
       "js": ["src/content_script.js"]
     }
   ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; font-src 'self' https://raw.githubusercontent.com;"
+  },
   "browser_specific_settings": {
     "gecko": {
       "id": "{895a470a-7abd-43b8-99d2-e72d4509ba6d}"
