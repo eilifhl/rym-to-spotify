@@ -1,0 +1,59 @@
+/* src/popup.css */
+
+body {
+    font-family: sans-serif;
+    width: 350px;
+    padding: 10px;
+}
+
+button {
+    margin: 5px 0;
+    padding: 8px;
+    width: 100%;
+    cursor: pointer;
+}
+
+textarea {
+    width: 95%;
+    height: 150px;
+    margin-top: 10px;
+}
+
+#status,
+#authStatus {
+    font-size: 0.9em;
+    color: #333;
+    margin-top: 5px;
+    min-height: 1.2em;
+}
+
+.options {
+    margin-top: 10px;
+}
+
+.options label {
+    margin-right: 15px;
+    font-size: 0.9em;
+    display: inline-block;
+}
+
+.error {
+    color: red;
+}
+
+.success {
+    color: green;
+}
+
+.info {
+    color: blue;
+}
+
+#authSection button {
+    width: calc(50% - 2px);
+    margin-right: 4px;
+}
+
+#authSection button:last-child {
+    margin-right: 0;
+}
