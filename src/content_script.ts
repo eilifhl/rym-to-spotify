@@ -22,20 +22,14 @@ interface RymSpotifyData {
   };
 }
 
-// ... (Keep the rest of your functions: parseDataLinks, getAlbumTitle, etc.) ...
-
 function parseDataLinks(jsonStr: string | null): RymSpotifyData | null {
   if (!jsonStr) return null;
   try {
-    return JSON.parse(jsonStr);
-  } catch (e) {
-    try {
-      const txt = document.createElement("textarea");
-      txt.innerHTML = jsonStr;
-      return JSON.parse(txt.value);
-    } catch {
-      return null;
-    }
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(jsonStr, "text/html");
+    return JSON.parse(doc.documentElement.textContent || "");
+  } catch {
+    return null;
   }
 }
 
