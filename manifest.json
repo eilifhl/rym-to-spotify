@@ -3,27 +3,23 @@
   "name": "RYM Spotify Link Extractor",
   "version": "2.0",
   "description": "Extracts Spotify links from RateYourMusic charts.",
-  "permissions": [
-    "activeTab",
-    "scripting",
-    "clipboardWrite",
-    "identity",
-    "storage"
-  ],
+  "permissions": ["identity", "storage", "clipboardWrite"],
   "host_permissions": [
     "https://api.spotify.com/*",
     "https://accounts.spotify.com/*"
   ],
   "action": {
-    "default_popup": "src/popup.html"
+    "default_popup": "dist/popup.html"
   },
   "background": {
-    "scripts": ["src/background.js"]
+    "scripts": ["dist/background.js"],
+    "type": "module"
   },
   "content_scripts": [
     {
       "matches": ["*://rateyourmusic.com/charts/*"],
-      "js": ["src/content_script.js"]
+      "js": ["dist/content_script.js"],
+      "run_at": "document_idle"
     }
   ],
   "browser_specific_settings": {

@@ -1,84 +1,56 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>RYM Spotify Extractor</title>
-    <style>
-        body {
-            font-family: sans-serif;
-            width: 350px;
-            padding: 10px;
-        }
-
-        button {
-            margin: 5px 0;
-            padding: 8px;
-            width: 100%;
-            cursor: pointer;
-        }
-
-        textarea {
-            width: 95%;
-            height: 150px;
-            margin-top: 10px;
-        }
-
-        #status, #authStatus {
-            font-size: 0.9em;
-            color: #333;
-            margin-top: 5px;
-            min-height: 1.2em;
-        }
-
-        .options label {
-            margin-right: 15px;
-            font-size: 0.9em;
-            display: inline-block;
-        }
-
-        .error {
-            color: red;
-        }
-
-        .success {
-            color: green;
-        }
-
-        .info {
-            color: blue;
-        }
-
-        #authSection button {
-            width: calc(50% - 2px);
-            margin-right: 4px;
-        }
-
-        #authSection button:last-child {
-            margin-right: 0;
-        }
-    </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RYM Extractor</title>
+    <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-<h3>RYM Spotify Extractor</h3>
+    <header>
+        <h3>RYM to Spotify</h3>
+        <div id="auth-indicator" class="status-dot disconnected"></div>
+    </header>
 
-<div id="authSection">
-    <button id="loginBtn">Login with Spotify</button>
-    <button id="logoutBtn" style="display:none;">Logout</button>
-</div>
-<div id="authStatus" class="info">Checking login status...</div>
+    <main>
+        <!-- Auth Section -->
+        <div id="authSection" class="section">
+            <button id="loginBtn" class="btn primary-btn">Connect Spotify</button>
+            <button id="logoutBtn" class="btn secondary-btn" style="display:none;">Disconnect</button>
+            <div id="authStatus" class="status-text">Checking connection...</div>
+        </div>
 
-<div class="options" id="linkOptionsDiv" style="margin-top: 10px;">
-    <label><input type="radio" name="linkType" value="album" id="radioAlbum" checked> <span id="albumLinkTypeLabelSpan">Album Links</span></label>
-    <span id="trackSpecificOptionsContainer">
-    <label><input type="radio" name="linkType" value="allTracks" id="radioAllTracks"> All Tracks</label>
-    <label><input type="radio" name="linkType" value="firstTrack" id="radioFirstTrack"> First Track</label>
-  </span>
-</div>
+        <!-- Options Section (Hidden by default) -->
+        <div id="linkOptionsDiv" class="section options-box" style="display:none;">
+            <div class="radio-group">
+                <label class="radio-label">
+                    <input type="radio" name="linkType" value="album" checked>
+                    <span>Albums</span>
+                </label>
+                <label class="radio-label">
+                    <input type="radio" name="linkType" value="allTracks">
+                    <span>All Tracks</span>
+                </label>
+                <label class="radio-label">
+                    <input type="radio" name="linkType" value="firstTrack">
+                    <span>First Track</span>
+                </label>
+            </div>
+        </div>
 
-<button id="getLinksBtn" disabled>Get Links</button>
-<button id="copyLinksBtn" disabled>Copy Links</button>
-<textarea id="linksArea" placeholder="Spotify links will appear here..."></textarea>
-<div id="status"></div>
+        <!-- Action Section -->
+        <div class="section">
+            <button id="getLinksBtn" class="btn action-btn" disabled>Get Links</button>
+        </div>
 
-<script src="popup.js"></script>
+        <!-- Results Section -->
+        <div class="section results-section">
+            <textarea id="linksArea" readonly placeholder="Links will appear here..."></textarea>
+            <button id="copyLinksBtn" class="btn copy-btn" disabled>Copy to Clipboard</button>
+            <div id="status" class="status-text"></div>
+        </div>
+    </main>
+
+    <script type="module" src="popup.ts"></script>
 </body>
 </html>

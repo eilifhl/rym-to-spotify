@@ -1,0 +1,16 @@
+{
+  "name": "rym-spotify-extractor",
+  "version": "2.0.0",
+  "scripts": {
+    "dev": "vite build --watch",
+    "build": "tsc && vite build"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.260",
+    "@types/firefox-webext-browser": "^143.0.0",
+    "@types/node": "^20.0.0",
+    "@types/webextension-polyfill": "^0.12.4",
+    "typescript": "^5.0.0",
+    "vite": "^5.0.0"
+  }
+}
