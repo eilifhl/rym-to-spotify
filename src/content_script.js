@@ -1,6 +1,5 @@
-import { ACTIONS } from './actions.js';
-import { readChart } from './chart.js';
-import { mountPanel } from './panel.js';
+(() => {
+const { ACTIONS, readChart, mountPanel } = globalThis.RymSpotify;
 browser.runtime.onMessage.addListener((req, _sender, sendResponse) => {
     if (req.action === ACTIONS.GET_CHART)
         sendResponse(readChart());
@@ -61,16 +60,27 @@ function insertPanel() {
     matchCard(host);
     mountPanel(host.attachShadow({ mode: 'open' }), async () => readChart());
 }
-insertPanel();
 let scheduled = false;
-new MutationObserver(() => {
-    if (scheduled)
-        return;
+function scheduleInsert() {
+    if (scheduled) return;
     scheduled = true;
-    requestAnimationFrame(() => { scheduled = false; insertPanel(); });
-}).observe(document.body, { childList: true, subtree: true });
+    setTimeout(() => { scheduled = false; insertPanel(); }, 0);
+}
+// RYM can reveal or style existing filters after the first attempt. Observe
+// those changes too, excluding our own host's style updates to avoid a loop.
+new MutationObserver(records => {
+    if (records.some(record => !record.target.closest?.('#rym-spotify-panel'))) scheduleInsert();
+}).observe(document.body, {
+    childList: true, subtree: true, attributes: true,
+    attributeFilter: ['class', 'style', 'hidden'],
+});
+window.addEventListener('load', scheduleInsert);
+window.addEventListener('pageshow', scheduleInsert);
+window.addEventListener('resize', scheduleInsert);
+insertPanel();
 // Re-sample card colors when RYM switches themes without reloading the chart.
 const themeObserver = new MutationObserver(insertPanel);
 for (const element of [document.documentElement, document.body]) {
     themeObserver.observe(element, { attributes: true, attributeFilter: ['class', 'style', 'data-theme'] });
 }
+})();

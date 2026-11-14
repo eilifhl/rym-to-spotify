@@ -1,9 +1,10 @@
+(() => {
 const API = 'https://api.spotify.com/v1';
-export class SpotifyError extends Error {
+class SpotifyError extends Error {
     status;
     constructor(message, status) { super(message); this.status = status; }
 }
-export async function spotifyRequest(token, path, body) {
+async function spotifyRequest(token, path, body) {
     const res = await fetch(`${API}${path}`, {
         method: body === undefined ? 'GET' : 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -23,7 +24,7 @@ export async function spotifyRequest(token, path, body) {
     }
     return res.json();
 }
-export async function albumTracks(token, id) {
+async function albumTracks(token, id) {
     if (!/^[a-zA-Z0-9]{22}$/.test(id))
         throw new Error('Invalid Spotify album ID.');
     const tracks = [];
@@ -42,7 +43,7 @@ export async function albumTracks(token, id) {
     }
     return tracks;
 }
-export async function createPlaylist(token, name, links, sourceUrl) {
+async function createPlaylist(token, name, links, sourceUrl) {
     const uris = [...new Set(links.map(link => {
             const match = /^https:\/\/open\.spotify\.com\/track\/([a-zA-Z0-9]{22})$/.exec(link);
             if (!match)
@@ -74,3 +75,6 @@ export async function createPlaylist(token, name, links, sourceUrl) {
         return { url, added, total: uris.length, error: `Playlist created, but only ${added} of ${uris.length} songs were added. ${error instanceof Error ? error.message : 'Please try again later.'}` };
     }
 }
+
+Object.assign(globalThis.RymSpotify ??= {}, { SpotifyError, spotifyRequest, albumTracks, createPlaylist });
+})();

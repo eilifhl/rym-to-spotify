@@ -1,5 +1,5 @@
-import { ACTIONS } from "./actions.js";
-import { albumTracks, createPlaylist, SpotifyError } from "./spotify.js";
+(() => {
+const { ACTIONS, albumTracks, createPlaylist, SpotifyError } = globalThis.RymSpotify;
 const CONFIG = {
     CLIENT_ID: "06abd10679dd467aaf47a5833ffb327b",
     AUTH_URL: "https://accounts.spotify.com/authorize",
@@ -201,3 +201,4 @@ browser.runtime.onMessage.addListener((req, _sender, sendResponse) => {
     handle().then(sendResponse).catch((error) => sendResponse({ error: error instanceof Error ? error.message : "Extension request failed." }));
     return true;
 });
+})();

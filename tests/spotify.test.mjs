@@ -1,6 +1,7 @@
 import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { albumTracks, createPlaylist } from '../src/spotify.js';
+import '../src/spotify.js';
+const { albumTracks, createPlaylist } = globalThis.RymSpotify;
 const originalFetch = globalThis.fetch;
 afterEach(() => { globalThis.fetch = originalFetch; });
 const id = n => String(n).padStart(22, '0');

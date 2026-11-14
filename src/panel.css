@@ -23,6 +23,7 @@ section {
     border-radius: var(--rym-card-radius, 4px);
     background: var(--rym-card-background, Canvas);
     padding: 16px;
+    margin: 16px 0 0 0;
     line-height: 1.5;
 }
 header,
@@ -71,13 +72,25 @@ option {
 }
 button {
     cursor: pointer;
-    font-weight: 600;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    padding: 9px 15px;
+    background: #2154a0;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.4;
 }
 button:hover:enabled {
-    background: color-mix(in srgb, currentColor 10%, transparent);
+    background: #194780;
+}
+button:active:enabled {
+    background: #153c6e;
 }
 button:disabled {
-    opacity: 0.5;
+    background: #747b8e;
+    color: #d5d8e0;
+    opacity: 1;
     cursor: wait;
 }
 button:focus-visible,
@@ -89,7 +102,7 @@ a:focus-visible {
 .auth {
     padding: 4px 8px;
     font-size: 12px;
-    font-weight: normal;
+    font-weight: 700;
 }
 .playlist-controls {
     border-top: 1px solid color-mix(in srgb, currentColor 15%, transparent);

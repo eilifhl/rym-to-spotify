@@ -1,7 +1,7 @@
-import { ACTIONS } from './actions.js';
-import styles from './panel.css?inline';
-export function mountPanel(root, getChart) {
-    root.innerHTML = `<style>${styles}</style>
+(() => {
+const { ACTIONS } = globalThis.RymSpotify;
+function mountPanel(root, getChart) {
+    root.innerHTML = `<link rel="stylesheet" href="${browser.runtime.getURL('src/panel.css')}">
     <section aria-label="RYM to Spotify">
       <header><strong>RYM to Spotify</strong><button class="auth" type="button">Connect Spotify</button></header>
       <p class="scope">Spotify links from this chart page, in chart order.</p>
@@ -159,3 +159,6 @@ export function mountPanel(root, getChart) {
     browser.storage.onChanged.addListener(() => { void checkAuth(); });
     void checkAuth();
 }
+
+Object.assign(globalThis.RymSpotify ??= {}, { mountPanel });
+})();

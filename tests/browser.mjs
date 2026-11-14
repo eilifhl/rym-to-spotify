@@ -1,13 +1,24 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import assert from 'node:assert/strict';
-// Exercise the actual built content script with browser/Spotify/clipboard adapters.
+import { pathToFileURL } from 'node:url';
+import { resolve } from 'node:path';
+// Load the source scripts in the same order as the extension manifest.
 const directory = '/tmp/rym-extension-test';
 mkdirSync(directory, { recursive: true });
-const originalContent = readFileSync('dist/content_script.js', 'utf8');
-assert(originalContent.includes('location.pathname.startsWith("/charts/")'));
-const content = originalContent.replace('location.pathname.startsWith("/charts/")', 'true');
-const fixture = readFileSync('tests/chart.html', 'utf8').replace('<script src="../dist/content_script.js"></script>', `<script>${content}</script>`);
+const manifest = JSON.parse(readFileSync('manifest.json', 'utf8'));
+const sourceRoot = pathToFileURL(`${process.cwd()}/`).href;
+const scripts = manifest.content_scripts[0].js.map(path => {
+  if (path !== 'src/content_script.js') return `<script src="${pathToFileURL(resolve(path)).href}"></script>`;
+  const original = readFileSync(path, 'utf8');
+  const guard = "location.pathname.startsWith('/charts/')";
+  assert(original.includes(guard));
+  // Local fixtures run at file:// URLs; bypass only the chart route guard.
+  return `<script>${original.replace(guard, 'true')}</script>`;
+}).join('\n');
+const fixture = readFileSync('tests/chart.html', 'utf8')
+  .replace('<!-- extension scripts -->', scripts)
+  .replace('__EXTENSION_ROOT__', sourceRoot);
 writeFileSync(`${directory}/chart.html`, fixture);
 for (const theme of ['light', 'dark']) {
  const res = spawnSync('chromium', ['--headless', '--no-sandbox', '--disable-gpu', '--no-proxy-server', '--disable-dev-shm-usage', '--allow-file-access-from-files', '--virtual-time-budget=3000', '--dump-dom', `--screenshot=${directory}/${theme}.png`, '--window-size=1050,950', `file://${directory}/chart.html${theme === 'dark' ? '#dark' : ''}`], { encoding:'utf8', timeout:20000, maxBuffer:2e6 });

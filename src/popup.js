@@ -1,5 +1,5 @@
-import { ACTIONS } from './actions.js';
-import { mountPanel } from './panel.js';
+(() => {
+const { ACTIONS, mountPanel } = globalThis.RymSpotify;
 const main = document.querySelector('main');
 async function init() {
     const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
@@ -14,3 +14,4 @@ async function init() {
     }
 }
 void init();
+})();

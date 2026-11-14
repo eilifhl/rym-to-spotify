@@ -2,14 +2,9 @@
   "name": "rym-spotify-extractor",
   "version": "2.0.0",
   "scripts": {
-    "dev": "npm run build && node scripts/watch.mjs",
-    "build": "vite build && vite build --config vite.content.config.mjs",
     "test": "node tests/spotify.test.mjs",
-    "test:browser": "npm run build && node tests/browser.mjs",
-    "package": "npm run build && node scripts/package.mjs"
-  },
-  "devDependencies": {
-    "vite": "^5.0.0"
+    "test:browser": "node tests/browser.mjs",
+    "package": "node scripts/package.mjs"
   },
   "type": "module"
 }

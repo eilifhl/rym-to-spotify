@@ -1,4 +1,5 @@
-export function readChart(doc = document) {
+(() => {
+function readChart(doc = document) {
     const links = new Set();
     const albums = new Map();
     for (const container of doc.querySelectorAll('[id^="media_link_button_container_"][data-links]')) {
@@ -31,3 +32,6 @@ export function readChart(doc = document) {
     const title = heading || doc.title.replace(/\s*[-|–]\s*Rate Your Music.*$/i, '').trim() || 'RYM chart';
     return { title, url: doc.location.href, links: [...links], albums: [...albums].map(([id, title]) => ({ id, title })) };
 }
+
+Object.assign(globalThis.RymSpotify ??= {}, { readChart });
+})();

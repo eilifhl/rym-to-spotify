@@ -1,4 +1,5 @@
-export const ACTIONS = {
+(() => {
+const ACTIONS = {
     GET_ALBUM_TRACKS: 'getAlbumTracksFromSpotify',
     GET_USER_AUTH_STATUS: 'getUserAuthStatus',
     INITIATE_USER_LOGIN: 'initiateUserLogin',
@@ -8,3 +9,6 @@ export const ACTIONS = {
     GET_CHART: 'getChart',
     CREATE_PLAYLIST: 'createPlaylist',
 };
+
+Object.assign(globalThis.RymSpotify ??= {}, { ACTIONS });
+})();
