@@ -1,0 +1,67 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Top albums of 2026 - Rate Your Music</title><style>
+body { background:#f7f7f7; color:#333; font:14px Arial; margin:40px auto; max-width:900px; padding:16px; } h1 { font-size:26px; } .page_charts_section_charts_item { background:white; padding:24px; border-bottom:1px solid #ddd; } .page_charts_section_charts_item_title { color:#34679a; font-size:20px; } body.dark { background:#202124; color:#ddd; } body.dark .page_charts_section_charts_item { background:#292a2d; }
+.chart-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 22px; align-items: start; }
+.filter-form { border: 1px solid #ddd; min-height: 140px; }
+.filter-card { border: 1px solid #c1c5ce; border-radius: 4px; padding: 16px; background: white; min-height: 180px; }
+body.dark .filter-card { background: #292a2d; }
+@media (max-width: 650px) { .chart-layout { grid-template-columns: 1fr; } }
+</style></head><body><h1>Top albums of 2026</h1><p>All genres · All countries</p>
+<div class="chart-layout"><div class="page_charts_section_charts">
+<div class="page_charts_section_charts_item"><div class="page_charts_section_charts_item_title">Example album</div><div id="media_link_button_container_1" data-links='{"spotify":{"0000000000000000000001":{"type":"album"},"0000000000000000000002":{"type":"album","default":true}}}'></div></div>
+<div class="page_charts_section_charts_item"><div class="page_charts_section_charts_item_title">Example song</div><div id="media_link_button_container_2" data-links='{&quot;spotify&quot;:{&quot;0000000000000000000003&quot;:{&quot;type&quot;:&quot;track&quot;}}}'></div></div>
+<div id="media_link_button_container_bad" data-links='broken'></div>
+<div id="media_link_button_container_duplicate" data-links='{"spotify":{"0000000000000000000002":{"type":"album"}}}'></div>
+</div><aside><h2>Add filters</h2><div class="filter-card"><form class="filter-form"><label>Include genres <input placeholder="Alt-Country"></label><p>Only include ratings from users…</p><label><input type="checkbox"> I'm following</label><p><button type="button" disabled>Update chart</button></p></form></div><div class="subscription"><h3>Support RYM</h3><p>Become a subscriber to access additional chart features.</p></div></aside></div><pre id="test-results">Running…</pre>
+<script>
+let loggedIn = true, permission = true, failClipboard = false;
+const calls = [], copied = [];
+window.browser = {
+ runtime: { onMessage: { addListener(fn) { window.messageListener = fn; } }, async sendMessage(req) {
+ calls.push(req);
+ if (req.action === 'getUserAuthStatus') return { isLoggedIn: loggedIn, canCreatePlaylist: permission };
+ if (req.action === 'getAlbumTracksFromSpotify') return { tracks: ['https://open.spotify.com/track/0000000000000000000004','https://open.spotify.com/track/0000000000000000000005'] };
+ if (req.action === 'createPlaylist') return { success: true, added: req.tracks.length, url: 'https://open.spotify.com/playlist/example' };
+ if (req.action === 'userLogout') { loggedIn = false; return { success:true }; }
+ if (req.action === 'initiateUserLogin') { loggedIn = true; permission = true; return { success:true }; }
+ } }, storage: { onChanged: { addListener() {} } }
+};
+Object.defineProperty(navigator, 'clipboard', { value: { async writeText(text) { if (failClipboard) throw Error('blocked'); copied.push(text); } } });
+</script>
+<script src="../dist/content_script.js"></script>
+<script>
+// Local fixture URL does not match /charts/, so insert through a temporary path override in the test runner.
+(async () => {
+ const results = [];
+ const check = (condition, name) => { if (!condition) throw Error(name); results.push('PASS: '+name); };
+ const wait = () => new Promise(resolve => setTimeout(resolve, 30));
+ try {
+ await wait();
+ const host = document.getElementById('rym-spotify-panel');
+ check(!!host, 'panel inserted in chart sidebar');
+ const panel = host.shadowRoot;
+ check(host.previousElementSibling.classList.contains('filter-card') && host.parentElement.tagName === 'ASIDE', 'panel sits directly below chart filters');
+ check(host.nextElementSibling.classList.contains('subscription'), 'panel sits above subscription box');
+ check(!document.querySelector('.filter-card').contains(host), 'Spotify box is outside the outer filter card');
+ check(getComputedStyle(panel.querySelector('section')).backgroundColor === getComputedStyle(document.querySelector('.filter-card')).backgroundColor, 'Spotify box matches filter card background');
+ let data; window.messageListener({ action:'getChart' }, {}, res => data = res);
+ check(data.title === 'Top albums of 2026', 'chart heading as name');
+ check(data.links.length === 2 && data.links[0].endsWith('0000000000000000000002'), 'default edition, deduplication and malformed entries');
+ panel.querySelector('.copy').click(); await wait();
+ check(copied[0] === data.links.join('\n'), 'one click finds and copies links in order');
+ panel.querySelector('.playlist').click(); await wait();
+ const request = calls.find(call => call.action === 'createPlaylist');
+ check(request.name === data.title && request.tracks.length === 3, 'playlist uses chart title and expanded album songs');
+ check(!panel.querySelector('.result').hidden, 'playlist result link visible');
+ failClipboard = true;
+ panel.querySelector('.copy').click(); await wait();
+ check(panel.querySelector('details').open && panel.querySelector('textarea').value === data.links.join('\n'), 'clipboard failure offers manual copy');
+ panel.querySelector('.auth').click(); await wait();
+ check(panel.querySelector('.playlist-controls').hidden, 'playlist creation hidden when signed out');
+ check(panel.querySelector('.mode').options[1].disabled, 'album tracks require login');
+ document.body.appendChild(document.createElement('aside')); await wait();
+ check(document.querySelectorAll('#rym-spotify-panel').length === 1, 'dynamic updates do not duplicate panel');
+ document.body.className = location.hash === '#dark' ? 'dark' : '';
+ document.getElementById('test-results').textContent = results.join('\n');
+ } catch(error) { document.getElementById('test-results').textContent = 'FAIL: '+error.message+'\n'+results.join('\n'); }
+})();
+</script></body></html>
