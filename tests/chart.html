@@ -13,17 +13,18 @@ body.dark .filter-card { background: #292a2d; }
 <div id="media_link_button_container_duplicate" data-links='{"spotify":{"0000000000000000000002":{"type":"album"}}}'></div>
 </div><aside><h2>Add filters</h2><div class="filter-card"><form class="filter-form"><label>Include genres <input placeholder="Alt-Country"></label><p>Only include ratings from users…</p><label><input type="checkbox"> I'm following</label><p><button type="button" disabled>Update chart</button></p></form></div><div class="subscription"><h3>Support RYM</h3><p>Become a subscriber to access additional chart features.</p></div></aside></div><pre id="test-results">Running…</pre>
 <script>
-let loggedIn = true, permission = true, failClipboard = false;
+let loggedIn = true, permission = true, failClipboard = false, hasClientId = true;
 const calls = [], copied = [];
 window.browser = {
  runtime: { getURL(path) { return new URL(path, '__EXTENSION_ROOT__').href; }, onMessage: { addListener(fn) { window.messageListener = fn; } }, async sendMessage(req) {
  calls.push(req);
- if (req.action === 'getUserAuthStatus') return { isLoggedIn: loggedIn, canCreatePlaylist: permission };
+ if (req.action === 'getUserAuthStatus') return { isLoggedIn: loggedIn, canCreatePlaylist: permission, hasClientId };
+ if (req.action === 'openSpotifySetup') return { success: true };
  if (req.action === 'getAlbumTracksFromSpotify') return { tracks: ['https://open.spotify.com/track/0000000000000000000004','https://open.spotify.com/track/0000000000000000000005'] };
  if (req.action === 'createPlaylist') return { success: true, added: req.tracks.length, url: 'https://open.spotify.com/playlist/example' };
  if (req.action === 'userLogout') { loggedIn = false; return { success:true }; }
  if (req.action === 'initiateUserLogin') { loggedIn = true; permission = true; return { success:true }; }
- } }, storage: { onChanged: { addListener() {} } }
+ } }, storage: { onChanged: { addListener(fn) { window.storageListener = fn; } } }
 };
 Object.defineProperty(navigator, 'clipboard', { value: { async writeText(text) { if (failClipboard) throw Error('blocked'); copied.push(text); } } });
 </script>
@@ -48,6 +49,9 @@ setTimeout(() => { delayedFilters.hidden = false; }, 100);
  const stylesheet = panel.querySelector('link[rel=stylesheet]');
  if (!stylesheet.sheet) await new Promise((resolve, reject) => { stylesheet.onload = resolve; stylesheet.onerror = reject; });
  check(stylesheet.href.endsWith('/src/panel.css'), 'panel loads editable CSS directly');
+ panel.querySelector('.setup').click(); await wait();
+ check(calls.some(call => call.action === 'openSpotifySetup'), 'Spotify setup can be opened from the chart panel');
+ check(panel.querySelector('.controls h2').textContent === 'Copy Spotify links' && panel.querySelector('.playlist-controls h2').textContent === 'Create a Spotify playlist', 'each workflow has its own heading');
  check(getComputedStyle(panel.querySelector('section')).marginTop === '16px', 'source margin is applied without building');
  check(host.previousElementSibling.classList.contains('filter-card') && host.parentElement.tagName === 'ASIDE', 'panel sits directly below chart filters');
  check(host.nextElementSibling.classList.contains('subscription'), 'panel sits above subscription box');
@@ -58,16 +62,62 @@ setTimeout(() => { delayedFilters.hidden = false; }, 100);
  check(data.links.length === 2 && data.links[0].endsWith('0000000000000000000002'), 'default edition, deduplication and malformed entries');
  panel.querySelector('.copy').click(); await wait();
  check(copied[0] === data.links.join('\n'), 'one click finds and copies links in order');
+ check(panel.querySelector('.copy-action .copy-status').textContent === 'Copied to clipboard', 'copy confirmation stays beside Copy links');
  panel.querySelector('.playlist').click(); await wait();
  const request = calls.find(call => call.action === 'createPlaylist');
  check(request.name === data.title && request.tracks.length === 3, 'playlist uses chart title and expanded album songs');
  check(!panel.querySelector('.result').hidden, 'playlist result link visible');
+ check(panel.querySelector('.playlist').nextElementSibling.matches('.playlist-status') && panel.querySelector('.playlist-status').textContent.includes('Created'), 'playlist confirmation appears directly below Create playlist');
+ panel.querySelector('.copy').click(); await wait();
+ check(!panel.querySelector('.result').hidden && panel.querySelector('.playlist-status').textContent.includes('Created'), 'copying preserves playlist confirmation and link');
+
+ // Test range collection against fetched chart HTML, including unlinked entries.
+ const originalFetch = window.fetch;
+ const chartUrl = 'https://rateyourmusic.com/charts/top/song/all-time/';
+ const pageHtml = (rows, next, first) => `<h1>Multi-page chart</h1>${rows.map(([rating, id]) => `<div class="page_charts_section_charts_item"><div class="page_charts_section_charts_item_title">Song ${id || 'unlinked'}</div><span class="page_charts_section_charts_item_details_average_num">${rating}</span>${id ? `<div id="media_link_button_container_${id}" data-links='${JSON.stringify({ spotify: { [String(id).padStart(22, '0')]: { type: 'track' } } })}'></div>` : ''}</div>`).join('')}${first ? `<a href="${chartUrl}">1</a><a href="${chartUrl}">Prev</a>` : ''}${next ? `<a rel="next" href="${next}">Next</a>` : ''}`;
+ const parsePage = (html, url) => RymSpotify.readChart(new DOMParser().parseFromString(html, 'text/html'), url);
+ const initial = parsePage(pageHtml([['4.7', 11], ['4.1', null]], chartUrl + '2/'), chartUrl);
+ const fetched = [];
+ window.fetch = async url => {
+   fetched.push(url);
+   return new Response(pageHtml([['4.00', 12], ['3.90', null], ['3.80', 13]], chartUrl + '3/', true));
+ };
+ const throughPage2 = await RymSpotify.collectChartPages(initial, { range: 'pages', endPage: '2' });
+ check(throughPage2.pagesRead === 2 && throughPage2.links.length === 3 && fetched.length === 1, 'page limit includes page 2 and never fetches page 3');
+ fetched.length = 0;
+ const threshold = await RymSpotify.collectChartPages(initial, { range: 'rating', minimumRating: '4' });
+ check(threshold.links.length === 2 && threshold.links[1].endsWith('0000000000000000000012') && fetched.length === 1, 'minimum rating includes equality and stops on an unlinked below-threshold entry');
+ const secondPage = parsePage(pageHtml([['4.00', 12]], null, true), chartUrl + '2/');
+ window.fetch = async url => new Response(pageHtml([['4.7', 11]], chartUrl + '2/'));
+ const fromSecond = await RymSpotify.collectChartPages(secondPage, { range: 'pages', endPage: 1 });
+ check(fromSecond.links[0].endsWith('0000000000000000000011'), 'range starts at page 1 when opened from a later page');
+ let rejected = false;
+ try { await RymSpotify.collectChartPages(initial, { range: 'pages', endPage: 0 }); } catch { rejected = true; }
+ check(rejected, 'invalid page limits are rejected');
+ rejected = false;
+ window.fetch = async () => new Response('<h1>Browser check required</h1>');
+ try { await RymSpotify.collectChartPages(initial, { range: 'pages', endPage: 2 }); } catch { rejected = true; }
+ check(rejected, 'blocked or empty chart pages fail before playlist creation');
+ window.fetch = originalFetch;
+ const range = panel.querySelector('.playlist-range');
+ range.value = 'rating'; range.dispatchEvent(new Event('change'));
+ check(!panel.querySelector('.minimum-rating-label').hidden && panel.querySelector('.end-page-label').hidden, 'rating option reveals minimum rating control');
+ range.value = 'pages'; range.dispatchEvent(new Event('change'));
+ check(!panel.querySelector('.end-page-label').hidden && panel.querySelector('.minimum-rating-label').hidden, 'page option reveals last-page control');
+ range.value = 'current'; range.dispatchEvent(new Event('change'));
  failClipboard = true;
  panel.querySelector('.copy').click(); await wait();
  check(panel.querySelector('details').open && panel.querySelector('textarea').value === data.links.join('\n'), 'clipboard failure offers manual copy');
+ check(panel.querySelector('.copy-status').dataset.error === 'true' && panel.querySelector('.playlist-status').dataset.error === 'false', 'copy errors stay in the copy section');
  panel.querySelector('.auth').click(); await wait();
  check(panel.querySelector('.playlist-controls').hidden, 'playlist creation hidden when signed out');
  check(panel.querySelector('.mode').options[1].disabled, 'album tracks require login');
+ hasClientId = false;
+ window.storageListener(); await wait();
+ check(panel.querySelector('.auth').textContent === 'Set up Spotify', 'new users are guided to personal app setup');
+ const loginCount = calls.filter(call => call.action === 'initiateUserLogin').length;
+ panel.querySelector('.auth').click(); await wait();
+ check(calls.at(-1).action === 'getUserAuthStatus' && calls.filter(call => call.action === 'initiateUserLogin').length === loginCount, 'setup opens without logging into the shared app');
  document.body.appendChild(document.createElement('aside')); await wait();
  check(document.querySelectorAll('#rym-spotify-panel').length === 1, 'dynamic updates do not duplicate panel');
  document.body.className = location.hash === '#dark' ? 'dark' : '';

@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spotify setup · RYM to Spotify</title>
+  <link rel="stylesheet" href="setup.css">
+</head>
+<body>
+  <main>
+    <header><img src="icon.svg" alt="" width="40" height="40"><span>RYM to Spotify</span></header>
+    <h1>Connect your own Spotify app</h1>
+    <p class="intro">A one-time setup to turn RYM albums into Spotify playlists. Your Client ID stays in this browser.</p>
+    <p class="notice">You’ll need Spotify Premium to own a personal developer app. Copying chart links works without setup. <a href="https://developer.spotify.com/documentation/web-api/concepts/quota-modes" target="_blank" rel="noopener noreferrer">Spotify requirements ↗</a></p>
+    <p id="legacy-notice" class="notice" hidden>Your existing Spotify connection uses the original shared app. It still works for approved accounts. To use your own app, follow the steps below.</p>
+    <ol class="steps">
+      <li>
+        <h2>Create your Spotify app</h2>
+        <p>Sign in with the Spotify account you want to use for playlists. Choose <strong>Create app</strong>, name it <strong>RYM to Spotify — personal</strong>, and add a short description. Select <strong>Web API</strong> if asked. Use the redirect URL in step 2 when the form asks for it.</p>
+        <a class="button secondary" href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener noreferrer">Open Spotify Developer Dashboard ↗</a>
+      </li>
+      <li>
+        <h2>Add this redirect URL</h2>
+        <p>Paste this exact URL into your app’s <strong>Redirect URIs</strong>. If the app already exists, open <strong>Settings → Basic Information</strong>. Add the URL and save the settings.</p>
+        <label for="redirect-uri">Your extension’s redirect URL</label>
+        <input id="redirect-uri" type="text" readonly spellcheck="false" aria-describedby="redirect-help">
+        <div class="action-row"><button id="copy-redirect" class="secondary" type="button" disabled>Copy redirect URL</button><p id="copy-status" class="status" role="status" aria-live="polite"></p></div>
+        <small id="redirect-help">Use the whole URL, including the ending slash if shown.</small>
+      </li>
+      <li>
+        <h2>Save your Client ID and connect</h2>
+        <p>Find <strong>Client ID</strong> in your Spotify app’s settings and paste it below. You don’t need the Client Secret.</p>
+        <form id="setup-form">
+          <label for="client-id">Your Spotify Client ID</label>
+          <input id="client-id" name="clientId" type="text" required pattern="[a-fA-F0-9]{32}" placeholder="Paste your 32-character Client ID" autocomplete="off" spellcheck="false" aria-describedby="client-help">
+          <small id="client-help">Changing the Client ID disconnects the previous Spotify app.</small>
+          <button id="save-connect" type="submit" disabled>Save and connect</button>
+        </form>
+        <p id="connection-status" class="status" role="status" aria-live="polite">Loading Spotify settings…</p>
+        <p class="hint">In Spotify’s login window, approve access to create private playlists. If you see <strong>Invalid redirect URI</strong>, check that step 2’s URL is saved exactly.</p>
+      </li>
+      <li>
+        <h2>Try one album</h2>
+        <p>Check that Spotify lets the extension fetch album tracks before making a larger playlist. This test won’t create a playlist.</p>
+        <label for="test-album">Spotify album link <span class="optional">(optional)</span></label>
+        <input id="test-album" type="url" placeholder="https://open.spotify.com/album/…" spellcheck="false">
+        <small>Leave empty to test a sample album.</small>
+        <button id="test-connection" class="secondary" type="button" disabled>Test album access</button>
+        <p id="test-status" class="status" role="status" aria-live="polite"></p>
+        <p id="ready" class="notice" hidden>You’re ready. Return to your RYM chart, choose <strong>All tracks from albums</strong>, then select <strong>Create playlist</strong>.</p>
+      </li>
+    </ol>
+    <p class="hint">If Spotify returns “access denied” (403), check that the app owner has Premium and the account signing in is approved under the app’s <strong>Users Management</strong>. Your personal app remains subject to Spotify’s development limits.</p>
+  </main>
+  <script src="actions.js"></script>
+  <script src="setup.js"></script>
+</body>
+</html>

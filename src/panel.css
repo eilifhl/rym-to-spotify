@@ -6,54 +6,59 @@
     min-width: 0;
     container-type: inline-size;
 }
-* {
-    box-sizing: border-box;
-}
-[hidden] {
-    display: none !important;
-}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
 section {
     font: inherit;
     color: inherit;
-    border: 1px solid
-        var(
-            --rym-card-border,
-            color-mix(in srgb, currentColor 22%, transparent)
-        );
+    border: 1px solid var(--rym-card-border, color-mix(in srgb, currentColor 22%, transparent));
     border-radius: var(--rym-card-radius, 4px);
     background: var(--rym-card-background, Canvas);
     padding: 16px;
-    margin: 16px 0 0 0;
+    margin: 16px 0 0;
     line-height: 1.5;
 }
-header,
-.controls {
+header {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 12px;
     justify-content: space-between;
+    gap: 12px;
 }
-strong {
-    font-size: 15px;
+strong { font-size: 15px; }
+.controls,
+.playlist-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
 }
-p {
-    margin: 8px 0;
+.controls { margin-top: 24px; }
+.playlist-controls {
+    border-top: 1px solid color-mix(in srgb, currentColor 15%, transparent);
+    margin-top: 28px;
+    padding-top: 24px;
 }
-.scope,
-small {
+h2 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.3;
+}
+.description,
+.range-help {
+    margin: -6px 0 0;
     opacity: 0.75;
     font-size: 12px;
 }
 label {
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px;
+    flex-direction: column;
+    gap: 4px;
     font-size: 13px;
 }
 button,
-select {
+select,
+input[type="number"] {
     font: inherit;
     font-size: 13px;
     border-radius: 3px;
@@ -62,10 +67,12 @@ select {
     color: inherit;
     background: transparent;
 }
-select {
-    max-width: 100%;
-    color-scheme: light dark;
+select,
+input[type="number"] {
+    width: 100%;
+    min-width: 0;
 }
+select { color-scheme: light dark; }
 option {
     color: CanvasText;
     background: Canvas;
@@ -73,7 +80,6 @@ option {
 button {
     cursor: pointer;
     border: 1px solid transparent;
-    border-radius: 3px;
     padding: 9px 15px;
     background: #2154a0;
     color: #fff;
@@ -81,60 +87,91 @@ button {
     font-weight: 700;
     line-height: 1.4;
 }
-button:hover:enabled {
-    background: #194780;
-}
-button:active:enabled {
-    background: #153c6e;
-}
+button:hover:enabled { background: #194780; }
+button:active:enabled { background: #153c6e; }
 button:disabled {
     background: #747b8e;
     color: #d5d8e0;
-    opacity: 1;
     cursor: wait;
 }
 button:focus-visible,
 select:focus-visible,
+input:focus-visible,
 a:focus-visible {
     outline: 2px solid #4485b8;
     outline-offset: 3px;
 }
-.auth {
-    padding: 4px 8px;
-    font-size: 12px;
-    font-weight: 700;
-}
-.playlist-controls {
-    border-top: 1px solid color-mix(in srgb, currentColor 15%, transparent);
-    margin-top: 14px;
-    padding-top: 14px;
+.rym-panel .account-actions {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
+    margin: 0;
 }
-small {
-    flex-basis: 100%;
+.rym-panel .account-actions > button {
+    min-height: 32px;
+    margin: 0;
+    padding: 6px 10px;
+    font-size: 12px;
+    line-height: 1.5;
+    white-space: nowrap;
 }
+.rym-panel .setup {
+    color: inherit;
+    background: transparent;
+    border-color: color-mix(in srgb, currentColor 30%, transparent);
+}
+.rym-panel .auth {
+    color: inherit;
+    background: transparent;
+    border-color: transparent;
+    font-weight: 400;
+}
+.rym-panel .account-actions > button:hover:enabled {
+    background: color-mix(in srgb, currentColor 8%, transparent);
+}
+.rym-panel .account-actions > button:active:enabled {
+    background: color-mix(in srgb, currentColor 14%, transparent);
+}
+.rym-panel .account-actions > button:disabled {
+    color: inherit;
+    background: transparent;
+    opacity: 0.5;
+}
+.copy-action {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    margin-top: 4px;
+}
+.rym-panel .copy {
+    margin: 0;
+    color: #2154a0;
+    background: transparent;
+    border-color: currentColor;
+}
+.rym-panel .copy:hover:enabled { background: rgb(33 84 160 / 8%); }
+.rym-panel .copy:active:enabled { background: rgb(33 84 160 / 15%); }
+.rym-panel .copy:disabled {
+    color: #747b8e;
+    background: transparent;
+}
+.rym-panel .playlist { margin: 4px 0 0; }
 .status {
+    margin: 0;
     font-size: 13px;
     overflow-wrap: anywhere;
 }
-.status:empty {
-    display: none;
-}
-.status[data-error="true"] {
-    color: #c74738;
-}
+.status:empty { display: none; }
+.status[data-error="true"] { color: #c74738; }
+.auth-status:not(:empty) { margin-top: 12px; }
 a {
     color: inherit;
     text-decoration: underline;
     font-size: 13px;
 }
-details {
-    margin-top: 10px;
-    font-size: 12px;
-}
+details { font-size: 12px; }
 textarea {
     display: block;
     width: 100%;
@@ -144,77 +181,6 @@ textarea {
     color: inherit;
     background: transparent;
 }
-@container (max-width: 500px) {
-    .controls,
-    .playlist-controls {
-        align-items: stretch;
-        flex-direction: column;
-    }
-}
-.playlist-controls {
-    border-top: 1px solid color-mix(in srgb, currentColor 15%, transparent);
-    margin-top: 14px;
-    padding-top: 14px;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 10px;
-}
-small {
-    flex-basis: 100%;
-}
-section {
-    padding: 16px;
-}
-.controls > button,
-.playlist-controls > button {
-    width: 100%;
-}
-label {
-    align-items: stretch;
-    flex-direction: column;
-    gap: 4px;
-}
-select {
-    width: 100%;
-    min-width: 0;
-}
-details {
-    margin-top: 10px;
-    font-size: 12px;
-}
-textarea {
-    display: block;
-    width: 100%;
-    height: 120px;
-    margin-top: 8px;
-    font: 12px monospace;
-    color: inherit;
-    background: transparent;
-}
-@container (max-width: 500px) {
-    .controls,
-    .playlist-controls {
-        align-items: stretch;
-        flex-direction: column;
-    }
-}
-
-@container (max-width: 500px) {
-    section {
-        padding: 16px;
-    }
-    .controls > button,
-    .playlist-controls > button {
-        width: 100%;
-    }
-    label {
-        align-items: stretch;
-        flex-direction: column;
-        gap: 4px;
-    }
-    select {
-        width: 100%;
-        min-width: 0;
-    }
+@media (prefers-color-scheme: dark) {
+    .rym-panel .copy { color: #8db7ff; }
 }

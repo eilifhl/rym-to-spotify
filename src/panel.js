@@ -2,23 +2,35 @@
 const { ACTIONS } = globalThis.RymSpotify;
 function mountPanel(root, getChart) {
     root.innerHTML = `<link rel="stylesheet" href="${browser.runtime.getURL('src/panel.css')}">
-    <section aria-label="RYM to Spotify">
-      <header><strong>RYM to Spotify</strong><button class="auth" type="button">Connect Spotify</button></header>
-      <p class="scope">Spotify links from this chart page, in chart order.</p>
+    <section class="rym-panel" aria-label="RYM to Spotify">
+      <header><strong>RYM to Spotify</strong><div class="account-actions"><button class="setup secondary" type="button">Spotify setup</button><button class="auth" type="button">Set up Spotify</button></div></header>
       <div class="controls">
-        <label class="mode-label">Copy <select class="mode" aria-label="Links to copy">
+        <h2>Copy Spotify links</h2>
+        <p class="description">Copies links from this chart page to your clipboard, in chart order.</p>
+        <label class="mode-label">Tracks to include <select class="mode" aria-label="Tracks to include in copied links">
           <option value="album">Chart links</option><option value="allTracks">All tracks from albums</option><option value="firstTrack">First track from each album</option>
         </select></label>
-        <button class="copy" type="button">Copy Spotify links</button>
+        <div class="copy-action">
+          <button class="copy" type="button">Copy links</button>
+          <p class="status copy-status" role="status" aria-live="polite"></p>
+        </div>
+        <details hidden><summary>Links (select to copy manually)</summary><textarea readonly aria-label="Spotify links"></textarea></details>
       </div>
       <div class="playlist-controls" hidden>
-        <label>Playlist songs <select class="playlist-mode" aria-label="Songs to include in playlist"><option value="allTracks">All tracks from albums</option><option value="firstTrack">First track from each album</option></select></label>
-        <button class="playlist" type="button">Create Spotify playlist</button>
-        <small>Uses the chart name and songs on this page. Creates a private playlist.</small>
+        <h2>Create a Spotify playlist</h2>
+        <p class="description">Creates a private playlist in your Spotify account using the chart’s name.</p>
+        <label>Tracks to include <select class="playlist-mode" aria-label="Tracks to include in playlist"><option value="allTracks">All tracks from albums</option><option value="firstTrack">First track from each album</option></select></label>
+        <label>Chart pages <select class="playlist-range" aria-label="Chart pages to include">
+          <option value="current">This page only</option><option value="pages">Pages 1 through…</option><option value="rating">Until rating drops below…</option>
+        </select></label>
+        <label class="end-page-label" hidden>Last page <input class="end-page" type="number" min="1" step="1" value="3"></label>
+        <label class="minimum-rating-label" hidden>Minimum rating <input class="minimum-rating" type="number" min="0" max="5" step="0.01" value="3.50"></label>
+        <small class="range-help" hidden></small>
+        <button class="playlist" type="button">Create playlist</button>
+        <p class="status playlist-status" role="status" aria-live="polite"></p>
+        <a class="result" hidden target="_blank" rel="noopener noreferrer">Open playlist in Spotify ↗</a>
       </div>
-      <p class="status" role="status" aria-live="polite"></p>
-      <a class="result" hidden target="_blank" rel="noopener noreferrer">Open playlist in Spotify ↗</a>
-      <details hidden><summary>Links (select to copy manually)</summary><textarea readonly aria-label="Spotify links"></textarea></details>
+      <p class="status auth-status" role="status" aria-live="polite"></p>
     </section>`;
     const el = (selector) => root.querySelector(selector);
     const auth = el('.auth');
@@ -26,20 +38,29 @@ function mountPanel(root, getChart) {
     const playlist = el('.playlist');
     const mode = el('.mode');
     const playlistMode = el('.playlist-mode');
-    const status = el('.status');
+    const range = el('.playlist-range');
+    const endPage = el('.end-page');
+    const minimumRating = el('.minimum-rating');
+    const status = el('.auth-status');
     const result = el('.result');
     let loggedIn = false;
     let canCreate = false;
     let busy = false;
     let hasAlbums = false;
-    const message = (text, error = false) => { status.textContent = text; status.dataset.error = String(error); };
+    let hasClientId = false;
+    const message = (text, error = false, target = status) => { target.textContent = text; target.dataset.error = String(error); };
     function update() {
-        auth.textContent = loggedIn ? 'Disconnect Spotify' : 'Connect Spotify';
+        auth.textContent = loggedIn ? 'Disconnect Spotify' : hasClientId ? 'Connect Spotify' : 'Set up Spotify';
         auth.disabled = busy;
+        el('.setup').disabled = busy;
+        el('.setup').hidden = !hasClientId;
         copy.disabled = busy;
         playlist.disabled = busy;
         mode.disabled = busy;
         playlistMode.disabled = busy;
+        range.disabled = busy;
+        endPage.disabled = busy;
+        minimumRating.disabled = busy;
         for (const option of Array.from(mode.options))
             option.disabled = option.value !== 'album' && !loggedIn;
         if (!loggedIn)
@@ -47,13 +68,25 @@ function mountPanel(root, getChart) {
         el('.playlist-controls').hidden = !loggedIn;
         el('.mode-label').hidden = !hasAlbums;
         playlistMode.parentElement.hidden = !hasAlbums;
-        playlist.textContent = canCreate ? 'Create Spotify playlist' : 'Enable Spotify playlists';
+        playlist.textContent = canCreate ? 'Create playlist' : 'Enable Spotify playlists';
     }
+    function updateRange() {
+        el('.range-help').hidden = range.value === 'current';
+        el('.end-page-label').hidden = range.value !== 'pages';
+        el('.minimum-rating-label').hidden = range.value !== 'rating';
+        el('.range-help').textContent = range.value === 'current'
+            ? 'Uses this chart page. Creates a private playlist.'
+            : range.value === 'pages'
+                ? 'Starts at page 1 and includes the last page. Entries without Spotify links are skipped. Keep this panel open.'
+                : 'Starts at page 1 and stops at the first entry below this rating. Equal ratings are included. Keep this panel open.';
+    }
+    range.onchange = updateRange;
     async function checkAuth() {
         try {
             const res = await browser.runtime.sendMessage({ action: ACTIONS.GET_USER_AUTH_STATUS });
             loggedIn = res.isLoggedIn;
             canCreate = res.canCreatePlaylist;
+            hasClientId = res.hasClientId;
             hasAlbums = (await getChart()).albums.length > 0;
             update();
         }
@@ -61,7 +94,7 @@ function mountPanel(root, getChart) {
             message('Could not connect to the extension. Reload this page after reloading the extension.', true);
         }
     }
-    async function collect(chart, selection) {
+    async function collect(chart, selection, report) {
         if (selection === 'album')
             return chart.links;
         const tracks = [];
@@ -75,7 +108,7 @@ function mountPanel(root, getChart) {
                 throw new Error('Connect Spotify to get album tracks.');
             const id = link.split('/').pop();
             const album = chart.albums.find(album => album.id === id);
-            message(`Getting tracks: ${album?.title || 'Album'}…`);
+            report(`Getting tracks: ${album?.title || 'Album'}…`);
             const res = await browser.runtime.sendMessage({ action: ACTIONS.GET_ALBUM_TRACKS, albumId: id });
             if (res.error)
                 throw new Error(res.error);
@@ -86,10 +119,12 @@ function mountPanel(root, getChart) {
     async function run(create) {
         if (busy)
             return;
+        const report = (text, error = false) => message(text, error, el(create ? '.playlist-status' : '.copy-status'));
         busy = true;
         update();
-        result.hidden = true;
-        message(create ? 'Preparing playlist…' : 'Finding Spotify links…');
+        if (create) result.hidden = true;
+        else el('details').hidden = true;
+        report(create ? 'Preparing playlist…' : 'Finding Spotify links…');
         try {
             if (create && !canCreate) {
                 const res = await browser.runtime.sendMessage({ action: ACTIONS.INITIATE_USER_LOGIN });
@@ -99,12 +134,15 @@ function mountPanel(root, getChart) {
                 if (!canCreate)
                     throw new Error('Spotify playlist permission is required.');
             }
-            const chart = await getChart();
-            const links = await collect(chart, create ? playlistMode.value : mode.value);
+            const options = create ? { range: range.value, endPage: endPage.value, minimumRating: minimumRating.value } : undefined;
+            if (create && range.value === 'pages' && !endPage.reportValidity()) throw new Error('Enter a valid last page.');
+            if (create && range.value === 'rating' && !minimumRating.reportValidity()) throw new Error('Enter a valid minimum rating.');
+            const chart = await getChart(options, text => report(text));
+            const links = await collect(chart, create ? playlistMode.value : mode.value, report);
             if (!links.length)
-                throw new Error('No Spotify links found on this page.');
+                throw new Error('No Spotify links found within the selected chart range.');
             if (create) {
-                message(`Creating “${chart.title}” with ${links.length} songs…`);
+                report(`Creating “${chart.title}” with ${links.length} songs…`);
                 const res = await browser.runtime.sendMessage({ action: ACTIONS.CREATE_PLAYLIST, name: chart.title, tracks: links, sourceUrl: chart.url });
                 if (res.url) {
                     result.href = res.url;
@@ -112,7 +150,7 @@ function mountPanel(root, getChart) {
                 }
                 if (res.error)
                     throw new Error(res.error);
-                message(`Created “${chart.title}” with ${res.added} songs.`);
+                report(`Created “${chart.title}” with ${res.added} songs.${chart.pagesRead ? ` Read ${chart.pagesRead} chart pages.` : ''}${chart.skipped ? ` Skipped ${chart.skipped} entries without Spotify links.` : ''}`);
             }
             else {
                 el('textarea').value = links.join('\n');
@@ -125,11 +163,11 @@ function mountPanel(root, getChart) {
                     el('textarea').select();
                     throw new Error('Clipboard access was blocked. Select and copy the links below.');
                 }
-                message(`Copied ${links.length} Spotify links.`);
+                report('Copied to clipboard');
             }
         }
         catch (error) {
-            message(error instanceof Error ? error.message : 'Something went wrong.', true);
+            report(error instanceof Error ? error.message : 'Something went wrong.', true);
         }
         finally {
             busy = false;
@@ -139,10 +177,19 @@ function mountPanel(root, getChart) {
     }
     copy.onclick = () => { void run(false); };
     playlist.onclick = () => { void run(true); };
+    async function openSetup() {
+        const res = await browser.runtime.sendMessage({ action: ACTIONS.OPEN_SPOTIFY_SETUP });
+        if (res.error) throw new Error(res.error);
+    }
+    el('.setup').onclick = () => { void openSetup().catch(error => message(error.message, true)); };
     auth.onclick = async () => {
         busy = true;
         update();
         try {
+            if (!loggedIn && !hasClientId) {
+                await openSetup();
+                return;
+            }
             const res = await browser.runtime.sendMessage({ action: loggedIn ? ACTIONS.USER_LOGOUT : ACTIONS.INITIATE_USER_LOGIN });
             if (res.error)
                 throw new Error(res.error);

@@ -2,7 +2,7 @@
   "name": "rym-spotify-extractor",
   "version": "2.0.0",
   "scripts": {
-    "test": "node tests/spotify.test.mjs",
+    "test": "node --test tests/*.test.mjs",
     "test:browser": "node tests/browser.mjs",
     "package": "node scripts/package.mjs"
   },

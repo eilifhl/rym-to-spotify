@@ -1,0 +1,53 @@
+(async () => {
+    const results = [];
+    const check = (condition, name) => { if (!condition) throw new Error(name); results.push(`PASS: ${name}`); };
+    const wait = () => new Promise(resolve => setTimeout(resolve, 30));
+    const el = selector => document.querySelector(selector);
+    try {
+        await wait();
+        check(el('#redirect-uri').value === 'https://example.extensions.allizom.org/', 'setup displays the exact redirect URL');
+        check(el('#test-connection').disabled, 'album test requires a connection');
+        el('#copy-redirect').click(); await wait();
+        check(setupCopied[0] === el('#redirect-uri').value && el('#copy-status').textContent === 'Copied to clipboard', 'redirect URL copies with feedback');
+        failClipboard = true;
+        el('#copy-redirect').click(); await wait();
+        check(el('#redirect-uri').selectionStart === 0 && el('#redirect-uri').selectionEnd === el('#redirect-uri').value.length, 'blocked clipboard selects redirect URL for manual copying');
+        failClipboard = false;
+        el('#copy-redirect').click(); await wait();
+        el('#client-id').value = 'invalid';
+        el('#setup-form').dispatchEvent(new Event('submit', { cancelable: true })); await wait();
+        check(!setupCalls.some(call => call.action === 'saveSpotifySetup'), 'invalid Client ID is rejected before saving');
+        const clientId = 'a'.repeat(32);
+        el('#client-id').value = clientId;
+        failLogin = true;
+        el('#setup-form').requestSubmit(); await wait();
+        check(configuredId === clientId && el('#connection-status').textContent.includes('Login cancelled') && !el('#save-connect').disabled, 'cancelled login preserves Client ID and allows retry');
+        failLogin = false;
+        el('#setup-form').requestSubmit(); await wait();
+        check(!el('#test-connection').disabled && el('#connection-status').textContent.includes('Spotify connected'), 'save and connect enables the album test');
+        const saveIndex = setupCalls.findIndex(call => call.action === 'saveSpotifySetup');
+        check(setupCalls[saveIndex + 1].action === 'initiateUserLogin', 'Client ID is saved before Spotify login');
+        el('#test-album').value = 'https://example.com/album/4aawyAB9vmqN3uQ7FjRGTy';
+        el('#test-connection').click(); await wait();
+        check(!setupCalls.some(call => call.action === 'getAlbumTracksFromSpotify'), 'invalid album host is rejected before an API request');
+        el('#test-album').value = 'https://open.spotify.com/intl-no/album/4aawyAB9vmqN3uQ7FjRGTy?si=example';
+        failTracks = true;
+        el('#test-connection').click(); await wait();
+        check(el('#test-status').textContent.includes('403') && el('#ready').hidden, 'API errors are shown beside the album test');
+        failTracks = false;
+        el('#test-connection').click(); await wait();
+        check(!el('#ready').hidden && setupCalls.at(-1).albumId === '4aawyAB9vmqN3uQ7FjRGTy', 'album test accepts shared localized links and shows next steps');
+        el('#client-id').value = 'b'.repeat(32);
+        el('#client-id').dispatchEvent(new Event('input'));
+        check(el('#test-connection').disabled && el('#ready').hidden, 'unsaved Client ID changes require reconnecting');
+        el('#client-id').value = clientId;
+        el('#client-id').dispatchEvent(new Event('input'));
+        el('#test-album').value = '';
+        el('#test-connection').click(); await wait();
+        check(!el('#ready').hidden, 'sample album test works without entering a link');
+        check(!setupCalls.some(call => call.action === 'createPlaylist'), 'setup test never creates a playlist');
+        check(document.documentElement.scrollWidth <= innerWidth, 'setup fits the viewport without horizontal scrolling');
+        document.getElementById('test-results').textContent = results.join('\n');
+    }
+    catch (error) { document.getElementById('test-results').textContent = `FAIL: ${error.message}\n${results.join('\n')}`; }
+})();

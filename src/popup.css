@@ -1,2 +1,3 @@
 :root { color-scheme: light dark; }
 body { width: 360px; margin: 0; padding: 12px; font: 13px/1.5 Arial, sans-serif; background: Canvas; color: CanvasText; }
+.setup-link { color: LinkText; }

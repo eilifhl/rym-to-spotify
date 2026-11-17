@@ -7,7 +7,11 @@ async function init() {
         const chart = await browser.tabs.sendMessage(tab.id, { action: ACTIONS.GET_CHART });
         if (!chart?.url)
             throw new Error('No chart');
-        mountPanel(main, () => browser.tabs.sendMessage(tab.id, { action: ACTIONS.GET_CHART }));
+        mountPanel(main, async options => {
+            const result = await browser.tabs.sendMessage(tab.id, { action: ACTIONS.GET_CHART, options });
+            if (result.error) throw new Error(result.error);
+            return result;
+        });
     }
     catch {
         main.textContent = 'Open a RateYourMusic chart to copy Spotify links or create a playlist. Reload an already open chart after installing the extension.';

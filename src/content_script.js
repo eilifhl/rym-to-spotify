@@ -1,8 +1,13 @@
 (() => {
-const { ACTIONS, readChart, mountPanel } = globalThis.RymSpotify;
+const { ACTIONS, readChart, collectChartPages, mountPanel } = globalThis.RymSpotify;
 browser.runtime.onMessage.addListener((req, _sender, sendResponse) => {
-    if (req.action === ACTIONS.GET_CHART)
+    if (req.action === ACTIONS.GET_CHART) {
+        if (req.options) {
+            collectChartPages(readChart(), req.options).then(sendResponse).catch(error => sendResponse({ error: error.message }));
+            return true;
+        }
         sendResponse(readChart());
+    }
     else if (req.action === ACTIONS.EXTRACT_LINKS)
         sendResponse({ links: readChart().links });
     else if (req.action === ACTIONS.EXTRACT_IDS)
@@ -58,7 +63,7 @@ function insertPanel() {
     host.id = 'rym-spotify-panel';
     filters.after(host);
     matchCard(host);
-    mountPanel(host.attachShadow({ mode: 'open' }), async () => readChart());
+    mountPanel(host.attachShadow({ mode: 'open' }), (options, progress, signal) => options ? collectChartPages(readChart(), options, progress, signal) : Promise.resolve(readChart()));
 }
 let scheduled = false;
 function scheduleInsert() {

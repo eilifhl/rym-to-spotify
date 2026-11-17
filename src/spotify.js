@@ -17,7 +17,7 @@ async function spotifyRequest(token, path, body) {
         }
         catch { /* Use status below. */ }
         const message = res.status === 401 ? 'Spotify session expired. Connect Spotify again.'
-            : res.status === 403 ? 'Spotify denied access. Reconnect Spotify to grant playlist permission and check access to the Spotify app.'
+            : res.status === 403 ? `Spotify denied access (403). Check that your app owner has Premium and your Spotify account is listed in the app’s Users Management. Reconnect Spotify if playlist permission is missing.${detail ? ` Spotify: ${detail}` : ''}`
                 : res.status === 429 ? `Spotify rate limit reached. Try again in ${res.headers.get('Retry-After') || 'a few'} seconds.`
                     : `Spotify request failed (${res.status})${detail ? `: ${detail}` : ''}`;
         throw new SpotifyError(message, res.status);
